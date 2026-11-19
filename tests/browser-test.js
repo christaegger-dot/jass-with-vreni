@@ -127,6 +127,8 @@ function expected(q) {
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn').length === 24), 'home shows 24 lessons');
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 20), 'stages 2 to 7 locked at start');
   await overflow('home');
+  const pl = await page.evaluate(() => ({ badges: document.querySelectorAll('.places svg.badge').length, links: Array.from(document.querySelectorAll('.places a')).map(a => a.getAttribute('href')), text: document.querySelector('.places').closest('.slate').innerText }));
+  ok(pl.badges === 2 && pl.links.join(' ') === 'https://heraldry-wiki.com/wiki/Winterthur https://sos.idaho.gov/StateSeal/' && /Winterthur, Switzerland/.test(pl.text) && /Idaho, USA/.test(pl.text) && /our own little drawings/.test(pl.text), 'home: the card about Winterthur and Idaho, with own badges and links to the real emblems');
   if (SITE) ok(await page.evaluate(() => Array.from(document.querySelectorAll('.player iframe')).map(f => f.src).join(' ') === 'https://www.youtube-nocookie.com/embed/V450wfaf0jE https://www.youtube-nocookie.com/embed/7F2mBZ3Axs8'), 'public site: two video players on the start page');
 
   // ---- help levels in lesson 1.2 (hint on request)
@@ -283,7 +285,11 @@ function expected(q) {
         const dom = await page.evaluate(() => ({ won: Array.from(document.querySelectorAll('.rs.won')).map(e => e.className.match(/rs(\d)/)[1]), cards: document.querySelectorAll('.rt .card svg').length, btn: document.getElementById('next-btn').textContent, score: Array.from(document.querySelectorAll('.rscore b')).map(b => +b.textContent), hand: document.querySelectorAll('[data-rcard]').length, on: document.querySelectorAll('[data-rcard]:not(:disabled)').length }));
         const last = s.st.done[s.st.done.length - 1];
         if (!(dom.won.length === 1 && +dom.won[0] === last.winner && dom.cards === 4 && dom.score[0] === s.st.score[0] && dom.score[1] === s.st.score[1] && dom.hand === s.st.hands[0].length && dom.on === 0 && dom.btn === (s.st.done.length === 9 ? 'Count the points' : 'Next trick'))) ok(false, 'trick ' + s.st.done.length + ' is shown wrongly ' + JSON.stringify(dom));
-        if (tricksSeen === 1) await overflow('round, trick done');
+        if (tricksSeen === 1) {
+          const tb = await page.evaluate(() => ({ score: document.querySelector('.rscore').innerText.replace(/\s+/g, ' '), seats: Array.from(document.querySelectorAll('.rt .rn')).map(e => e.querySelectorAll('svg.badge').length).join(''), top: document.querySelector('.lesson-top .t').textContent, msg: document.getElementById('round-msg').innerText }));
+          ok(/Idaho \d+ your team/.test(tb.score) && /Winterthur \d+ their team/.test(tb.score) && tb.seats === '1111' && tb.top === 'Your first round · Trick 1 of 9' && /points? for (Idaho|Winterthur)\./.test(tb.msg), 'round: the teams are Idaho and Winterthur, every seat wears its badge ' + JSON.stringify([tb.score, tb.top]));
+          await overflow('round, trick done');
+        }
         await click('[data-ract="next"]'); continue;
       }
       const legal = myLegal(s.st), n = s.st.hands[0].length;
@@ -317,6 +323,8 @@ function expected(q) {
     ok(rp.sum[0] + rp.sum[1] === 157 && s.st.score[0] + s.st.score[1] === 157 + bonus && s.st.score[0] === rp.sum[0] + (s.match === 0 ? 100 : 0), 'round (' + choice + '): 157 points, counted independently ' + JSON.stringify(rp.sum) + (bonus ? ' plus 100 for the Match' : ''));
     const text = await page.evaluate(() => document.querySelector('#app').innerText);
     ok(text.includes('The round is over') && text.includes(String(s.st.score[0])) && text.includes(String(s.st.score[1])) && (bonus ? /Match/.test(text) : text.includes('= 157')) && text.includes('Merci'), 'round (' + choice + '): the final count is shown');
+    const want = s.match === 0 ? 'Nine tricks for Idaho' : s.match === 1 ? 'Nine tricks for Winterthur' : s.st.score[0] > s.st.score[1] ? 'Idaho wins the round' : 'Winterthur wins this one';
+    if (!text.includes(want)) ok(false, 'round (' + choice + '): wrong verdict, expected «' + want + '» for ' + JSON.stringify(s.st.score));
     return { trump, s, triedIllegal, aidChecked };
   }
   await click('.lesson-btn[data-stage="6"][data-lesson="0"]');

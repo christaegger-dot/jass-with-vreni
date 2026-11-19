@@ -19,6 +19,8 @@ Live: https://jass-with-vreni.netlify.app
 
 - Voice: Christa Egger.
 - Card drawings: own simplified drawings after the traditional Swiss-German pattern.
+- Team badges in the round (a potato for Idaho, a lion for Winterthur): own drawings. The Great Seal of
+  Idaho and the coat of arms of Winterthur are official emblems and are not used; the start page links to them.
 - Rules follow the Schieber guide on jassverzeichnis.ch.
 
 ## Status

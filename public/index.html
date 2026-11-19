@@ -125,9 +125,18 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .hsum span{display:flex;align-items:center;gap:6px}.hsum svg{width:17px;height:17px}
 .hsum b{text-align:right}
 .ghostcard{aspect-ratio:2/3;border:1.5px dashed var(--felt-line);border-radius:8px}
-.rscore{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-family:var(--font-chalk);font-size:20px;background:var(--slate);border:4px solid var(--slate-edge);border-radius:6px;padding:5px 12px}
+.rscore{display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:var(--font-chalk);font-size:20px;line-height:1.1;background:var(--slate);border:4px solid var(--slate-edge);border-radius:6px;padding:5px 10px}
 .rscore b{color:var(--gold);font-size:24px}
-.rscore .dim{font-family:var(--font-body);font-size:13.5px}
+.rscore .side{display:flex;align-items:center;gap:7px}
+.rscore .side.r{text-align:right}
+.rscore i{display:block;font-style:normal;font-family:var(--font-body);font-size:11px;letter-spacing:.4px;color:var(--chalk-dim)}
+.badge{width:24px;height:24px;flex:0 0 auto}
+.rn .badge{width:13px;height:13px}
+.places{display:flex;flex-direction:column;gap:14px}
+.place{display:flex;gap:12px;align-items:flex-start}
+.place .badge{width:46px;height:46px;margin-top:2px}
+.place b{font-family:var(--font-display);font-weight:400;font-size:19px;letter-spacing:.3px}
+.place p{margin:2px 0 4px}.place a{color:var(--gold);font-size:14.5px}
 .trumpchip{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;background:var(--gold);color:var(--ink);border-radius:999px;padding:4px 12px 4px 10px;font-size:14.5px}
 .trumpchip span{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700}
 .trumpchip svg{width:22px;height:22px}
@@ -771,7 +780,7 @@ const STAGES=[
   ]},
   {ch:2,title:'Your first round',blurb:'Nine cards, nine tricks, 157 points. Everything you have learned, at one table.',lessons:[
     {title:'Play a whole round',help:0,n:9,round:true,
-      text:'You sit at the bottom of the table. Your partner sits across from you, the other two are your opponents. In this round you are Vorhand. We play with the four Trumpf suits only, and everything counts once. The others play plainly and honestly. The clever tricks come in Chapter 3.'}
+      text:'You sit at the bottom of the table. Your partner sits across from you, and together you are Team Idaho. The other two play for Winterthur, the town where Vreni’s table stands, so they have home advantage. In this round you are Vorhand. We play with the four Trumpf suits only, and everything counts once. The others play plainly and honestly. The clever tricks come in Chapter 3.'}
   ]}
 ];
 const PASS=.8;
@@ -1048,6 +1057,7 @@ function renderHome(){
     +'<div class="path">'+path
     +'<p class="later"><b>Still to come:</b> Chapter 3 · Playing well and Chapter 4 · The full game.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
+    +placesHTML()
     +'<div class="slate breaks"><h2>For the breaks</h2><p class="dim small">Two Swiss classics on YouTube. Both are in Swiss German, which is half the fun.</p>'
     +'<div class="break">'+(PUBLIC_SITE?'<h3>Vreni’s favourite Jass song</h3>'+player('V450wfaf0jE','E schöni Jass-Rundi by Oesch’s die Dritten'):songLink('Vreni’s favourite Jass song'))+'<span class="small dim">«E schöni Jass-Rundi» by Oesch’s die Dritten. She sings along. You have been warned.'+(PUBLIC_SITE?' <a href="'+SONG_URL+'">Open on YouTube</a>':'')+'</span></div>'
     +'<div class="break">'+(PUBLIC_SITE?'<h3>Emil plays Jass</h3>'+player('7F2mBZ3Axs8','Der Jasser, a sketch by Emil, 1974'):extLink(SKETCH_URL,'Emil plays Jass'))+'<span class="small dim">«Der Jasser», a sketch by the comedian Emil from 1974. Vreni says she has met this man at every table.'+(PUBLIC_SITE?' <a href="'+SKETCH_URL+'">Open on YouTube</a>':'')+'</span></div></div>';
@@ -1215,6 +1225,32 @@ function finishLesson(){
 
 /* ---------- a whole round ---------- */
 const SEATS=['You','Right','Partner','Left'];
+// The two teams of the round. The badges are our own little drawings: a potato for Idaho and a lion for Winterthur.
+// They are a wink at the two places, not the Great Seal of Idaho and not the coat of arms of Winterthur.
+const TEAMS=[{name:'Idaho',who:'your team'},{name:'Winterthur',who:'their team'}];
+function badgeSVG(team){
+  const open='<svg class="badge" viewBox="0 0 40 40" aria-hidden="true">';
+  if(team===0)return open+'<circle cx="20" cy="20" r="19" fill="#8fbfe0" stroke="#24292c" stroke-width="1.5"/>'
+    +'<path d="M8.5 22.5C7.5 15 13 9.5 20.5 9.5C27.5 9.5 32 13.5 32 20C32 27 26.5 31 19.5 31C13.5 31 9.3 27.8 8.5 22.5Z" fill="#cfa063" stroke="#5b3d1c" stroke-width="1.6"/>'
+    +'<g fill="#8a6230"><circle cx="13.5" cy="15.5" r=".9"/><circle cx="27.5" cy="17" r=".9"/><circle cx="14.5" cy="26.5" r=".8"/><circle cx="26" cy="27" r=".8"/></g>'
+    +'<circle cx="17" cy="19.5" r="1.4" fill="#24292c"/><circle cx="23.5" cy="19" r="1.4" fill="#24292c"/>'
+    +'<path d="M16.5 23.3Q20.5 27 25 22.8" fill="none" stroke="#24292c" stroke-width="1.5" stroke-linecap="round"/></svg>';
+  let mane='';for(let i=0;i<12;i++){const a=i*Math.PI/6;mane+='<circle cx="'+(20+10.4*Math.cos(a)).toFixed(1)+'" cy="'+(21+10.4*Math.sin(a)).toFixed(1)+'" r="4.1"/>'}
+  return open+'<circle cx="20" cy="20" r="19" fill="#fffdf6" stroke="#d1341f" stroke-width="1.5"/>'
+    +'<g fill="#d1341f"><circle cx="12" cy="11" r="3.6"/><circle cx="28" cy="11" r="3.6"/>'+mane+'<circle cx="20" cy="21" r="10.5"/></g>'
+    +'<circle cx="20" cy="21.5" r="7.4" fill="#fffdf6"/><circle cx="17" cy="20" r="1.2" fill="#24292c"/><circle cx="23" cy="20" r="1.2" fill="#24292c"/>'
+    +'<path d="M18.3 22.8h3.4l-1.7 2.1z" fill="#d1341f"/><path d="M20 24.9q-1.8 2.3-3.5.5M20 24.9q1.8 2.3 3.5.5" fill="none" stroke="#24292c" stroke-width="1.1" stroke-linecap="round"/></svg>';
+}
+function scoreHTML(score){
+  return '<div class="rscore"><span class="side" aria-label="Your team, Idaho: '+score[0]+' points">'+badgeSVG(0)+'<span>Idaho <b>'+score[0]+'</b><i>your team</i></span></span>'
+    +'<span class="side r" aria-label="Their team, Winterthur: '+score[1]+' points"><span>Winterthur <b>'+score[1]+'</b><i>their team</i></span>'+badgeSVG(1)+'</span></div>';
+}
+function placesHTML(){
+  return '<div class="slate breaks"><h2>Two places, one table</h2><div class="places">'
+    +'<div class="place">'+badgeSVG(1)+'<div><b>Winterthur, Switzerland</b><p class="small">This is where Vreni’s table stands. The town carries two red lions in its coat of arms, one on each side of a slanting bar. Vreni says anyone can see what they are: two partners at a Jass table.</p><a href="https://heraldry-wiki.com/wiki/Winterthur">See the real coat of arms</a></div></div>'
+    +'<div class="place">'+badgeSVG(0)+'<div><b>Idaho, USA</b><p class="small">This is where the cards are headed. Idaho’s Great Seal is the only state seal in America designed by a woman, Emma Edwards Green, in 1891. Its motto is «Esto perpetua», let it be perpetual. Vreni says the same about a good Jass evening.</p><a href="https://sos.idaho.gov/StateSeal/">See the real seal</a></div></div>'
+    +'</div><p class="dim small">The potato and the lion are our own little drawings. In the round at the end of Chapter 2 you play for Idaho. Winterthur has home advantage, Idaho has the potatoes. Somebody will have to make Rösti.</p></div>';
+}
 const WHO=['You win','The player on your right wins','Your partner wins','The player on your left wins'];
 function startRound(si,li){
   L=null;
@@ -1236,7 +1272,7 @@ function roundEndTrick(){
   const st=R.st,cards=st.trick.slice(),leader=st.leader,t=roundCloseTrick(st);
   const card=cards[(t.winner-leader+4)%4],last=st.done.length===9;
   R.shown={cards,leader,winner:t.winner};R.phase='trickdone';R.mood='happy';
-  R.msg='<b>'+WHO[t.winner]+'</b> with the '+tName(card,st.trump)+'. '+t.points+(t.points===1?' point':' points')+' for '+(t.winner%2?'their team':'your team')+'.'+(last?' That includes 5 for the last trick.':'');
+  R.msg='<b>'+WHO[t.winner]+'</b> with the '+tName(card,st.trump)+'. '+t.points+(t.points===1?' point':' points')+' for '+TEAMS[t.winner%2].name+'.'+(last?' That includes 5 for the last trick.':'');
   if(t.winner===0&&!R.called){R.called=true;voice('das-isch-en-stich')}
   renderRound();
 }
@@ -1289,8 +1325,12 @@ function renderRound(){
   }
   if(R.phase==='done'){
     const m=R.match,sum=st.score[0]+st.score[1];
-    app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni(m===1?'oops':'happy')+'<div class="bubble"><h2>The round is over</h2>'
-      +'<div class="rscore" style="margin:8px 0"><span>Your team <b>'+st.score[0]+'</b></span><span>Their team <b>'+st.score[1]+'</b></span></div>'
+    const verdict=m===0?'Nine tricks for Idaho. The lions of Winterthur have gone very quiet.'
+      :m===1?'Nine tricks for Winterthur. The lions are purring. They will stop when you have read Chapter 3.'
+      :st.score[0]>st.score[1]?'Idaho wins the round. The lions of Winterthur want a rematch.'
+      :'Winterthur wins this one. Home advantage, says Vreni. The potatoes want a rematch.';
+    app.innerHTML='<div class="slate">'+scoreHTML(st.score)+'<div class="vreni-row" style="margin-top:12px">'+vreni(m===1?'oops':'happy')+'<div class="bubble"><h2>The round is over</h2>'
+      +'<p><b>'+verdict+'</b></p>'
       +'<p>Your team took '+st.won[0]+' of the nine tricks, the others took '+st.won[1]+'.</p>'
       +(m===0?'<p class="chalk">Heitere Fahne, en Match!<span class="tr">Good heavens, a Match!</span></p><p>You took all nine tricks. That is called a Match and brings 100 points on top: 257.</p>'
         :m===1?'<p>They took all nine tricks. That is called a Match and brings them 100 points on top: 257. It happens to the best of us.</p>'
@@ -1305,7 +1345,8 @@ function renderRound(){
   const legal=myTurn?(st.trick.length?legalT(mine,st.trick,st.trump):mine.map((_,i)=>i)):[];
   const tm=c=>showAid&&st.trump&&c.s===st.trump?' tm':'';
   const hand='<div class="cards hand">'+mine.map((c,i)=>'<div class="cardbox"><button type="button" class="card'+tm(c)+(myTurn&&showAid&&!legal.includes(i)?' offsuit':'')+(R.bad===i?' wrong':'')+'" data-rcard="'+i+'"'+(myTurn?'':' disabled')+'>'+cardSVG(c)+'</button></div>').join('')+'</div>';
-  const top='<div class="lesson-top"><span class="t">Stage '+(R.si+1)+' · Your first round</span><button class="ghost" type="button" data-go="home" aria-label="Leave the round">Leave</button></div>';
+  const trickNo=Math.min(st.done.length+(R.phase==='trickdone'?0:1),9);
+  const top='<div class="lesson-top"><span class="t">'+(R.phase==='announce'?'Stage '+(R.si+1)+' · Your first round':'Your first round · Trick '+trickNo+' of 9')+'</span><button class="ghost" type="button" data-go="home" aria-label="Leave the round">Leave</button></div>';
   const helpSeg='<div class="help"><span>Help:</span><div class="seg" role="group" aria-label="Help level">'+HELP.map((h,i)=>'<button type="button" data-help="'+i+'" aria-pressed="'+(R.help===i)+'">'+h+'</button>').join('')+'</div></div>';
   if(R.phase==='announce'){
     const opts=SUIT_OPTS().concat([{id:'push',label:'Gschobe',sub:'push to my partner'}]);
@@ -1320,12 +1361,11 @@ function renderRound(){
   const shown=R.phase==='trickdone'?R.shown:{cards:st.trick,leader:st.leader,winner:-1};
   const slot=seat=>{
     const k=(seat-shown.leader+4)%4,c=shown.cards[k];
-    return '<div class="rs rs'+seat+(shown.winner===seat?' won':'')+'"><span class="rn">'+SEATS[seat]+(shown.winner===seat?' <span class="tag win">wins</span>':c&&k===0?' <span class="tag">led</span>':'')+'</span>'
+    return '<div class="rs rs'+seat+(shown.winner===seat?' won':'')+'"><span class="rn">'+badgeSVG(seat%2)+SEATS[seat]+(shown.winner===seat?' <span class="tag win">wins</span>':c&&k===0?' <span class="tag">led</span>':'')+'</span>'
       +(c?'<span class="card'+tm(c)+'">'+cardSVG(c)+'</span>':'<span class="card ghostcard"></span>')+'</div>';
   };
-  const n=Math.min(st.done.length+(R.phase==='trickdone'?0:1),9);
   app.innerHTML=top
-    +'<div class="rscore"><span>Your team <b>'+st.score[0]+'</b></span><span class="dim">Trick '+n+' of 9</span><span>Their team <b>'+st.score[1]+'</b></span></div>'
+    +scoreHTML(st.score)
     +'<div class="table rtable"><div class="trumpchip"><span>Trumpf</span><i>'+symSVG(st.trump)+'<b>'+suitOf(st.trump).name+'</b></i></div><div class="rt">'+[2,3,1,0].map(slot).join('')+'</div></div>'
     +'<div class="slate fb rmsg'+(R.mood==='oops'?' no':'')+'" id="round-msg" aria-live="polite"><div class="vreni-row">'+vreni(R.mood,'sm')+'<div class="bubble"><p>'+R.msg+'</p>'
     +(R.phase==='trickdone'?'<div class="actions" style="margin-top:8px"><button class="primary" type="button" data-ract="next" id="next-btn">'+(st.done.length===9?'Count the points':'Next trick')+'</button></div>':'')

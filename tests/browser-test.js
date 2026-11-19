@@ -33,6 +33,23 @@ function pattern(hand, s) {
   const mine = hand.filter(c => c.s === s).map(c => c.r), has = r => mine.includes(r), aces = hand.filter(c => c.s !== s && c.r === 'A').length;
   return (has('U') && has('9') && has('A')) || (has('U') && mine.length >= 4) || (has('9') && has('A') && mine.length >= 5) || (has('U') && has('9') && mine.length >= 3 && aces >= 2);
 }
+// Chapter 4: order and points without Trumpf, typed in by hand, and a Weis finder of its own
+const MORD = { oben: 'AKOUB9876', unde: '6789BUOKA' };
+const MPTS = { oben: { A: 11, K: 4, O: 3, U: 2, B: 10, '9': 0, '8': 8, '7': 0, '6': 0 }, unde: { '6': 11, '7': 0, '8': 8, '9': 0, B: 10, U: 2, O: 3, K: 4, A: 0 } };
+const mWin = (cs, m) => cs.map((c, i) => [c, i]).filter(x => x[0].s === cs[0].s).sort((a, b) => MORD[m].indexOf(a[0].r) - MORD[m].indexOf(b[0].r))[0][1];
+function weisPts(hand) {
+  const out = [], SU = ['eichle', 'rose', 'schelle', 'schilte'];
+  for (const s of SU) { let run = 0; for (const r of 'AKOUB9876|') { if (r !== '|' && hand.some(c => c.s === s && c.r === r)) run++; else { if (run >= 3) out.push({ 3: 20, 4: 50, 5: 100, 6: 150, 7: 200, 8: 250, 9: 300 }[run]); run = 0; } } }
+  for (const r of 'AKOUB9') if (SU.every(s => hand.some(c => c.s === s && c.r === r))) out.push(r === 'U' ? 200 : r === '9' ? 150 : 100);
+  return out;
+}
+function higherWeis(q) {
+  const pa = weisPts(q.mine)[0], pb = weisPts(q.theirs)[0], row = cs => new Set(cs.map(c => c.s)).size === 1, top = cs => Math.min(...cs.map(c => 'AKOUB9876'.indexOf(c.r)));
+  if (pa !== pb) return pa > pb ? 'mine' : 'theirs';
+  if (row(q.mine) !== row(q.theirs)) return row(q.mine) ? 'mine' : 'theirs';
+  if (top(q.mine) !== top(q.theirs)) return top(q.mine) < top(q.theirs) ? 'mine' : 'theirs';
+  return q.mine[0].s === q.trump ? 'mine' : q.theirs[0].s === q.trump ? 'theirs' : 'undecided';
+}
 // Chapter 3, worked out here without looking at the app's own answer
 function bestCards(q) {
   const h = q.hand, t = q.trump, idx = h.map((_, i) => i), has = (s, r) => h.some(c => c.s === s && c.r === r);
@@ -54,6 +71,13 @@ function expected(q) {
     case 'tvalue': return tVal(q.cards[0], q.trump);
     case 'tcount': return q.cards.reduce((n, c) => n + tVal(c, q.trump), 0) + (/last trick/.test(q.prompt) ? 5 : 0);
     case 'tlegal': return tLegal(q.hand, q.cards, q.trump);
+    case 'mstronger': case 'mwinner': return mWin(q.cards, q.mode);
+    case 'mvalue': return MPTS[q.mode][q.cards[0].r];
+    case 'mcount': return q.cards.reduce((n, c) => n + MPTS[q.mode][c.r], 0);
+    case 'weisfind': { const w = weisPts(q.cards); return w.length > 1 ? 'more than one Weis' : (w[0] || 0); }
+    case 'weiscmp': return higherWeis(q);
+    case 'weiswrite': { const n = q.lines.map(l => { const m = l.match(/\((\d+)\)/); return m ? +m[1] : 0; }); return Math.max(n[0], n[1]) > n[2] ? n[0] + n[1] : 0; }
+    case 'stoeck': return q.trump && q.cards.some(c => c.s === q.trump && c.r === 'K') && q.cards.some(c => c.s === q.trump && c.r === 'O') ? 'yes' : 'no';
     case 'bock': { const o = q.trump === q.cards[0].s ? TO : ORDER; let b = 0; q.cards.forEach((c, i) => { if (o.indexOf(c.r) < o.indexOf(q.cards[b].r)) b = i; }); return o.slice(0, o.indexOf(q.cards[b].r)).split('').every(r => q.gone.some(g => g.r === r)) ? b : 'a stronger card is still out'; }
     case 'mybock': return q.hand.map((c, i) => ORDER.slice(0, ORDER.indexOf(c.r)).split('').every(r => q.gone.some(g => g.s === c.s && g.r === r)) ? i : -1).filter(i => i >= 0);
     case 'trumpcount': return 9 - q.gone.length - q.mine.length;
@@ -63,7 +87,9 @@ function expected(q) {
     case 'pushed': { const by = SUIT_IDS.map(s => [q.cards.filter(c => c.s === s).length, s]).sort((a, b) => b[0] - a[0]); return by[0][0] > by[1][0] ? by[0][1] : 'ambiguous'; }
     case 'mc': { const key = { 'Who gets the 5 extra points': 'Whoever wins the last trick', 'whole Trumpf suit worth': '62', 'one whole round': '157',
       'What is your seat called': 'Vorhand', 'What are your two choices': 'Name Trumpf, or push the choice to my partner', 'What must your partner do now': 'Name Trumpf. No pushing back.',
-      'Who plays the first card': 'I do. Vorhand always leads.', 'Whose turn is it now': 'The player on my right', 'how long does a Trumpf stay': 'For one round of nine tricks' }; const k = Object.keys(key).find(k => q.prompt.includes(k)); return q.options.find(o => o.label === key[k]).id; }
+      'Who plays the first card': 'I do. Vorhand always leads.', 'Whose turn is it now': 'The player on my right', 'how long does a Trumpf stay': 'For one round of nine tricks',
+      'When do you announce your Weis': 'When I play my card in the first trick', 'When do you call «Stöck»': 'When I play the second of the two cards', 'What happens to your 20 points': 'They count anyway',
+      'It is Obenabe, and you hold König and Ober': 'No. Without a Trumpf suit there are no Stöck', 'Is that a Weis': 'No. A row does not go round the corner', 'Which order do rows follow there': 'The same as everywhere: Ass, König, Ober, Under, Banner, 9' }; const k = Object.keys(key).find(k => q.prompt.includes(k)); return q.options.find(o => o.label === key[k]).id; }
     case 'suit': return q.cards[0].s;
     case 'number': return q.cards[0].r;
     case 'pick': { const m = q.prompt.match(/Tap the (\S+)\./); return q.cards.findIndex(c => c.r === NAME2R[m[1]]); }
@@ -145,8 +171,8 @@ function expected(q) {
   }
 
   // ---- start state
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn').length === 34), 'home shows 34 lessons');
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 30), 'stages 2 to 9 locked at start');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn').length === 45), 'home shows 45 lessons');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 41), 'stages 2 to 11 locked at start');
   await overflow('home');
   const pl = await page.evaluate(() => ({ badges: document.querySelectorAll('.places svg.badge').length, links: Array.from(document.querySelectorAll('.places a')).map(a => a.getAttribute('href')), text: document.querySelector('.places').closest('.slate').innerText }));
   ok(pl.badges === 2 && pl.links.join(' ') === 'https://heraldry-wiki.com/wiki/Winterthur https://sos.idaho.gov/StateSeal/' && /Winterthur, Switzerland/.test(pl.text) && /Idaho, USA/.test(pl.text) && /our own little drawings/.test(pl.text) && /For Heidi/.test(pl.text), 'home: the card about Winterthur and Idaho, dedicated to Heidi, with own badges and links to the real emblems');
@@ -164,7 +190,7 @@ function expected(q) {
   await click('[data-help="0"]');
   ok(await page.evaluate(() => !!document.querySelector('.aid')), 'guided: aid always visible');
   await click('[data-go="home"]');
-  ok(await page.evaluate(() => L === null && document.querySelectorAll('.lesson-btn').length === 34), 'Leave returns to the path');
+  ok(await page.evaluate(() => L === null && document.querySelectorAll('.lesson-btn').length === 45), 'Leave returns to the path');
 
   // ---- stage 1
   let r = await playLesson(0, 0); ok(r.score === '100%', 'lesson 1.1 all correct -> 100% (got ' + r.score + ')');
@@ -380,7 +406,7 @@ function expected(q) {
   await click('[data-rsuit="push"]');
   // the others are still playing while we leave: click inside the page, because the screen is redrawn under our feet
   await page.evaluate(() => { document.querySelector('[data-rcard="0"]').click(); document.querySelector('[data-go="home"]').click(); }); await sleep(300);
-  ok(await page.evaluate(() => R === null && document.querySelectorAll('.lesson-btn').length === 34), 'leaving a round in the middle of a trick returns to the path');
+  ok(await page.evaluate(() => R === null && document.querySelectorAll('.lesson-btn').length === 45), 'leaving a round in the middle of a trick returns to the path');
   await page.evaluate(() => { BOT_DELAY = 0; });
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 24 && document.querySelector('.lesson-btn[data-stage="6"][data-lesson="0"] .lvl').textContent === '3 rounds played'), 'chapters 1 and 2: 24 lessons ticked, three rounds counted');
   ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('You have played a whole round') && !document.querySelector('.lesson-btn[data-stage="7"][data-lesson="0"]').disabled && document.querySelector('.lesson-btn[data-stage="8"][data-lesson="0"]').disabled), 'after the round: chapter 3 is announced, stage 8 open, stage 9 locked');
@@ -427,19 +453,66 @@ function expected(q) {
   await click('[data-go="home"]');
   for (const [si, li] of [[8, 0], [8, 1], [8, 2], [8, 3], [8, 4]]) {
     r = await playLesson(si, li, li === 3 ? [2] : []); ok(r.score === (li === 3 ? '83%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 3 ? '83% with one wrong card' : '100%') + ' (got ' + r.score + ')');
+    if (li === 4) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 3 is done. Stage 10 opens Chapter 4')), 'check 9.5 announces chapter 4');
+    await click('[data-go="home"]');
+  }
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 34), 'chapters 1 to 3: 34 lessons ticked');
+  ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 3 is done') && !document.querySelector('.lesson-btn[data-stage="9"][data-lesson="0"]').disabled && document.querySelector('.lesson-btn[data-stage="10"][data-lesson="0"]').disabled), 'home shows the chapter-3-complete message; stage 10 open, stage 11 locked');
+
+  // ---- chapter 4, stage 10: Obenabe and Undenufe
+  await click('.lesson-btn[data-stage="9"][data-lesson="2"]');
+  ok(await page.evaluate(() => Array.from(document.querySelectorAll('.spk')).map(b => b.dataset.say).join() === 'undenufe' && /No Trumpf/i.test(document.querySelector('.trumpchip').innerText) && document.querySelector('.ladder').innerText.replace(/\s+/g, ' ').startsWith('6 beats 7 beats 8')), 'Undenufe intro: speaker button, the tag «No Trumpf», and the order starting with the 6');
+  await overflow('Undenufe intro');
+  await click('[data-act="begin"]');
+  await page.evaluate(() => { const q = qMWinner('unde'); q.first = true; L.queue[0] = q; renderLesson(); });
+  let m4 = await page.evaluate(() => { const q = L.queue[0]; return { chip: document.querySelector('.trumpchip').innerText.replace(/\s+/g, ' '), off: document.querySelectorAll('.card.offsuit').length, exp: q.cards.filter(c => c.s !== q.led).length, tm: document.querySelectorAll('.card.tm').length }; });
+  ok(/No Trumpf/i.test(m4.chip) && /Undenufe/.test(m4.chip) && m4.off === m4.exp && m4.off > 0 && m4.tm === 0, 'Undenufe trick: gold tag «No Trumpf · Undenufe», wrong-suit cards dimmed, no T marks ' + JSON.stringify(m4.chip));
+  await overflow('Undenufe question');
+  await click('[data-go="home"]');
+  for (const [si, li] of [[9, 0], [9, 1], [9, 2], [9, 3], [9, 4], [9, 5]]) {
+    r = await playLesson(si, li, li === 1 ? [3] : []); ok(r.score === (li === 1 ? '83%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 1 ? '83% with one wrong' : '100%') + ' (got ' + r.score + ')');
+    if (li === 5) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Stage 11 is open')), 'check 10.6 opens stage 11');
+    await click('[data-go="home"]');
+  }
+  // ---- stage 11: Weis and Stöck
+  await click('.lesson-btn[data-stage="10"][data-lesson="0"]');
+  ok(await page.evaluate(() => Array.from(document.querySelectorAll('.spk')).map(b => b.dataset.say).join() === 'wys' && document.querySelectorAll('.wt div').length === 6), 'Weis intro: speaker button and the table of six values');
+  await overflow('Weis intro');
+  await click('[data-act="begin"]');
+  await page.evaluate(() => { const q = qWeisFind('seq4'); q.first = true; L.queue[0] = q; renderLesson(); });
+  await overflow('Weis question');
+  const wq = await page.evaluate(() => ({ answer: L.queue[0].answer, mark: L.queue[0].mark }));
+  await click('[data-opt="' + wq.answer + '"]');
+  ok(await page.evaluate(() => L.ok === true && Array.from(document.querySelectorAll('.cards.hand .card')).map((e, i) => e.classList.contains('right') ? i : -1).filter(i => i >= 0).join() === L.queue[0].mark.join()) && wq.mark.length >= 4, 'Weis found: exactly the cards of the row are ringed green');
+  await click('[data-go="home"]');
+  await click('.lesson-btn[data-stage="10"][data-lesson="2"]'); await click('[data-act="begin"]');
+  await page.evaluate(() => { const q = qWeisCmp('trump'); q.first = true; L.queue[0] = q; renderLesson(); });
+  ok(await page.evaluate(() => Array.from(document.querySelectorAll('.row-label')).map(e => e.textContent).join('|') === 'Our Weis|Their Weis' && document.querySelectorAll('.table .cards').length === 2 && !!document.querySelector('.trumpchip')), 'Weis against Weis: two rows of cards and the Trumpf tag');
+  await overflow('Weis comparison');
+  await page.evaluate(() => { const q = qWeisWrite(); q.first = true; L.queue[0] = q; renderLesson(); });
+  ok(await page.evaluate(() => document.querySelectorAll('.lines li').length === 3), 'who writes: three lines, one for you, one for your partner, one for the other team');
+  await overflow('Weis writing');
+  await click('[data-go="home"]');
+  await click('.lesson-btn[data-stage="10"][data-lesson="3"]'); await click('[data-act="begin"]');
+  await page.evaluate(() => { const q = qStoeck('yes'); q.first = true; L.queue[0] = q; playing = null; renderLesson(); });
+  await click('[data-opt="yes"]'); await sleep(300);
+  ok(await page.evaluate(() => L.ok === true && L.line[2] === 'stoeck-ruf' && playing && playing.src.split('/').pop() === 'stoeck-ruf.mp3'), 'Stöck: Vreni calls «Stöck!»');
+  await click('[data-go="home"]');
+  for (const [si, li] of [[10, 0], [10, 1], [10, 2], [10, 3], [10, 4]]) {
+    r = await playLesson(si, li, li === 2 ? [1] : []); ok(r.score === (li === 2 ? '83%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 2 ? '83% with one wrong' : '100%') + ' (got ' + r.score + ')');
     if (li === 4) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('everything so far')), 'last check says that more is on the way');
     await click('[data-go="home"]');
   }
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 34), 'all 34 lessons ticked');
-  ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 3 is done')), 'home shows the chapter-3-complete message');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 45), 'all 45 lessons ticked');
+  ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('every game and every bonus')), 'home shows the message after stage 11');
 
   // extra volume: replay stage 2 and 3 checks several times to exercise the random generators through the UI
-  for (let k = 0; k < 4; k++) for (const [si, li] of [[8, 4], [7, 4], [8, 3], [8, 2], [8, 1], [8, 0], [7, 3], [7, 2], [5, 3], [5, 2], [5, 1], [5, 0], [3, 4], [4, 3], [4, 2], [4, 1], [4, 0], [3, 1], [1, 2], [0, 3]]) { r = await playLesson(si, li); if (r.score !== '100%') ok(false, 'replay ' + si + '.' + li + ' gave ' + r.score); await click('[data-go="home"]'); }
+  for (let k = 0; k < 4; k++) for (const [si, li] of [[10, 4], [9, 5], [10, 3], [10, 2], [10, 1], [9, 4], [9, 3], [8, 4], [7, 4], [8, 3], [8, 2], [8, 1], [8, 0], [7, 3], [7, 2], [5, 3], [5, 2], [5, 1], [5, 0], [3, 4], [4, 3], [4, 2], [4, 1], [4, 0], [3, 1], [1, 2], [0, 3]]) { r = await playLesson(si, li); if (r.score !== '100%') ok(false, 'replay ' + si + '.' + li + ' gave ' + r.score); await click('[data-go="home"]'); }
   ok(true, 'question types exercised through the UI: ' + JSON.stringify(typesSeen));
 
   // ---- persistence
   await page.reload({ waitUntil: 'networkidle2' });
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 34 && S.rounds === 9), 'progress survives a reload');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 45 && S.rounds === 9), 'progress survives a reload');
   await click('#sound-btn'); await page.reload({ waitUntil: 'networkidle2' });
   ok(await page.evaluate(() => document.getElementById('sound-btn').textContent === 'Sound off'), 'sound setting survives a reload');
 
@@ -460,12 +533,12 @@ function expected(q) {
   await click('#deck-btn');
   const d = await page.evaluate(() => ({ cards: document.querySelectorAll('.deckrow .card svg').length, spk: document.querySelectorAll('.spk').length, rows: document.querySelectorAll('.sheet-table tbody tr').length, clips: document.querySelectorAll('.clips button').length }));
   ok(d.cards === 45, 'sheet shows the 36 cards and the 9 Trumpf cards (' + d.cards + ')');
-  ok(d.spk === 29, 'sheet has 29 speaker buttons: 4 suits, 9 cards, 4 words, 7 words of chapter 2, 5 of chapter 3 (' + d.spk + ')');
+  ok(d.spk === 33, 'sheet has 33 speaker buttons: 4 suits, 9 cards, 4 words, 7 words of chapter 2, 5 of chapter 3, 4 of chapter 4 (' + d.spk + ')');
   ok(d.clips === (SITE ? 0 : 52), (SITE ? 'public site: recording check removed' : 'recording check lists 52 clips') + ' (' + d.clips + ')');
   await overflow('cards sheet');
   if (SITE) {
     const pdfs = await page.evaluate(async () => { const out = []; for (const a of document.querySelectorAll('a[download]')) { const r = await fetch(a.href); const b = new Uint8Array(await r.arrayBuffer()); out.push([a.getAttribute('href'), r.status, r.headers.get('content-type'), String.fromCharCode(...b.slice(0, 5)), b.length]); } return out; });
-    ok(pdfs.length === 6 && pdfs.every(p => p[1] === 200 && p[3] === '%PDF-' && p[4] > 20000), 'public site: all six cheat sheets download as PDF ' + JSON.stringify(pdfs.map(p => [p[0].split('/').pop(), p[1], p[2], p[4]])));
+    ok(pdfs.length === 8 && pdfs.every(p => p[1] === 200 && p[3] === '%PDF-' && p[4] > 20000), 'public site: all eight cheat sheets download as PDF ' + JSON.stringify(pdfs.map(p => [p[0].split('/').pop(), p[1], p[2], p[4]])));
   }
   // speaker button really plays
   await click('.spk[data-say="under"]'); await sleep(400);
@@ -484,7 +557,7 @@ function expected(q) {
   const badAudio = audio.filter(a => !(a[1] > 0.5 && a[1] < 5));
   ok(audio.length === 52 && badAudio.length === 0, 'all 52 recordings load and decode in the browser' + (badAudio.length ? ' BAD: ' + JSON.stringify(badAudio) : ''));
   // every key the code can ask for exists
-  const keys = await page.evaluate(() => { const used = new Set(); GOOD.concat(BAD, [TRICK_LINE]).forEach(l => used.add(l[2])); ['gruezi', 'zerscht-daenke', 'jetzt-chasch-es', 'suuber', 'gschobe', 'trumpf', 'das-isch-en-stich', 'nid-a-mim-tisch', 'nei-nei-nei', 'heitere-fahne', 'merci'].forEach(k => used.add(k)); WORDS2.forEach(w => used.add(w[0])); WORDS3.forEach(w => used.add(w[0])); SUITS.forEach(s => used.add(s.id)); RANKS.forEach(r => used.add(AUDIO_KEY[r.id])); WORDS.forEach(w => used.add(w[0])); return Array.from(used).filter(k => !RECORDED.has(k)); });
+  const keys = await page.evaluate(() => { const used = new Set(); GOOD.concat(BAD, [TRICK_LINE]).forEach(l => used.add(l[2])); ['gruezi', 'zerscht-daenke', 'jetzt-chasch-es', 'suuber', 'gschobe', 'trumpf', 'das-isch-en-stich', 'nid-a-mim-tisch', 'nei-nei-nei', 'heitere-fahne', 'merci'].forEach(k => used.add(k)); WORDS2.forEach(w => used.add(w[0])); WORDS3.forEach(w => used.add(w[0])); WORDS4.forEach(w => used.add(w[0])); used.add('stoeck-ruf'); SUITS.forEach(s => used.add(s.id)); RANKS.forEach(r => used.add(AUDIO_KEY[r.id])); WORDS.forEach(w => used.add(w[0])); return Array.from(used).filter(k => !RECORDED.has(k)); });
   ok(keys.length === 0, 'every clip the app can ask for is recorded' + (keys.length ? ' MISSING ' + keys : ''));
 
   // ---- progress saved by the previous version (check was lesson 3) is carried over
@@ -499,7 +572,7 @@ function expected(q) {
   await page.goto(URL.split('#')[0] + '#open-all', { waitUntil: 'networkidle2' }); await page.reload({ waitUntil: 'networkidle2' });
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 0 && document.querySelector('#app').innerText.includes('every stage is open')), '#open-all opens every stage');
   await page.goto(URL.split('#')[0], { waitUntil: 'networkidle2' }); await page.reload({ waitUntil: 'networkidle2' });
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 30), 'without the switch the stages are locked again');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 41), 'without the switch the stages are locked again');
 
   // ---- wide screen
   await page.setViewport({ width: 1280, height: 800 }); await click('#home-btn'); await overflow('home on desktop width');

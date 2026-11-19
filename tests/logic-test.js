@@ -1,7 +1,7 @@
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const logic=html.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
-const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull};')();
+const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS};')();
 let fail=0,count=0;const ok=(c,m)=>{count++;if(!c){fail++;console.log('FAIL',m)}};
 const C=(s,r)=>({s,r});
 // fixed cases
@@ -181,7 +181,7 @@ console.log('rounds: team of seat 0 took more tricks in '+ownWins+' of 3000, Mat
 {let good=0;for(let k=0;k<200;k++){const st=api.newRound(api.dealRound(0),0);st.trump='schelle';for(let n=0;n<9;n++){for(let j=0;j<4;j++)api.roundPlay(st,st.turn,api.botMove(st,st.turn));api.roundCloseTrick(st)}if(st.score[0]>st.score[1])good++}
  console.log('first deal, Schelle named, played by the app itself: your team is ahead in '+good+' of 200');ok(good>=100,'first deal is a fair start ('+good+' of 200)')}
 for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
-ok(api.STAGES.length===9&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3,'nine stages: the round is stage 7, chapter 3 has stages 8 and 9');
+ok(api.STAGES.length===11&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'eleven stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 starts with stages 10 and 11');
 
 // ------------------------------------------------------------ chapter 3: Bock, counting, team play
 // Bock, written out independently: every stronger card of the same suit has been played.
@@ -226,4 +226,74 @@ for(let i=0;i<3000;i++){
 }
 for(const k of ['draw','cash','smearA','smearB','discard','pull'])ok(scnSeen[k]===3000,'scenario occurs: '+k);
 ok(api.qDiscard().kind==='signal'&&api.qPull().kind==='both'&&api.qSmear(true).kind==='tactic'&&api.qCash().kind==='tactic','every situation says whether it is a tactic or a signal');
+
+// ------------------------------------------------------------ chapter 4: Obenabe, Undenufe, Weis, Stöck
+// Reference tables, typed in by hand from the rule base, strongest card first.
+const REF={oben:{order:'AKOUB9876',pts:{A:11,K:4,O:3,U:2,B:10,'9':0,'8':8,'7':0,'6':0}},unde:{order:'6789BUOKA',pts:{'6':11,'7':0,'8':8,'9':0,B:10,U:2,O:3,K:4,A:0}}};
+const refWinM=(cs,m)=>cs.map((c,i)=>[c,i]).filter(x=>x[0].s===cs[0].s).sort((a,b)=>REF[m].order.indexOf(a[0].r)-REF[m].order.indexOf(b[0].r))[0][1];
+for(const m of ['oben','unde']){
+  ok(api.orderM(m).join('')===REF[m].order,'order of '+m);
+  ok(api.deck().reduce((n,c)=>n+api.pointsM(c,m),0)===152&&Object.keys(REF[m].pts).every(r=>api.pointsM(C('rose',r),m)===REF[m].pts[r])&&Object.values(REF[m].pts).reduce((a,b)=>a+b,0)===38,'points of '+m+': 38 a suit, 152 in all');
+}
+ok(api.trickWinnerM([C('rose','K'),C('rose','7'),C('schelle','A'),C('rose','O')],'oben')===0&&api.trickWinnerM([C('rose','K'),C('rose','7'),C('schelle','6'),C('rose','O')],'unde')===1,'same trick, two games: König wins in Obenabe, the 7 in Undenufe');
+// Weis, found a second way: look at every window of consecutive ranks and every rank across the four suits
+function refWeis(hand){
+  const order='AKOUB9876',out=[],has=(s,r)=>hand.some(c=>c.s===s&&c.r===r);
+  for(const s of SU){
+    for(let a=0;a<9;a++)for(let b=a+2;b<9;b++){
+      const all=order.slice(a,b+1).split('').every(r=>has(s,r)),before=a>0&&has(s,order[a-1]),after=b<8&&has(s,order[b+1]);
+      if(all&&!before&&!after)out.push({pts:{3:20,4:50,5:100,6:150,7:200,8:250,9:300}[b-a+1],keys:order.slice(a,b+1).split('').map(r=>s+r)});
+    }
+  }
+  for(const r of 'AKOUB9')if(SU.every(s=>has(s,r)))out.push({pts:r==='U'?200:r==='9'?150:100,keys:SU.map(s=>s+r)});
+  return out;
+}
+ok(api.findWeis(H('r:A r:K r:O e:7 e:6 s:U t:U t:8 s:9')).map(w=>w.pts).join()==='20','Ass, König, Ober: three in a row, 20');
+ok(api.findWeis(H('r:7 r:6 r:A e:K e:O s:U t:U t:8 s:9')).length===0,'7, 6, Ass is round the corner: no Weis');
+ok(api.findWeis(H('r:U e:U s:U t:U r:9 e:9 s:9 t:9 r:A')).map(w=>w.pts).sort().join()==='150,200','four Under 200 and four nines 150');
+ok(api.findWeis(H('r:8 e:8 s:8 t:8 r:A e:K s:O t:6 r:6')).length===0,'four eights are no Weis');
+ok(api.findWeis(H('r:A r:K r:O r:U r:B r:9 r:8 r:7 r:6'))[0].pts===300,'nine in a row: 300');
+for(let k=0;k<20000;k++){const h=api.deck().sort(()=>Math.random()-.5).slice(0,9),a=api.findWeis(h).map(w=>w.pts+':'+w.cards.map(key).sort().join()).sort(),b=refWeis(h).map(w=>w.pts+':'+w.keys.sort().join()).sort();if(J(a)!==J(b)){ok(false,'findWeis differs from the reference '+J({h,a,b}));break}}
+const W=(str,kind)=>{const cards=H(str);return kind==='four'?{kind:'four',top:cards[0].r,len:4,pts:{U:200,'9':150}[cards[0].r]||100,cards}:{kind:'seq',suit:cards[0].s,top:cards[0].r,len:cards.length,pts:{3:20,4:50,5:100}[cards.length],cards}};
+ok(api.weisCompare(W('r:9 r:8 r:7 r:6'),W('e:A e:K e:O'),'schelle')===1,'Weis: 50 beats 20');
+ok(api.weisCompare(W('r:B r:9 r:8 r:7 r:6'),W('r:A e:A s:A t:A','four'),'schelle')===1,'Weis: at 100 each, a row beats four of a kind');
+ok(api.weisCompare(W('r:K r:O r:U'),W('e:A e:K e:O'),'schelle')===-1,'Weis: equal rows, the higher top card wins');
+ok(api.weisCompare(W('r:K r:O r:U'),W('e:K e:O e:U'),'eichle')===-1&&api.weisCompare(W('r:K r:O r:U'),W('e:K e:O e:U'),'schelle')===0,'Weis: equal rows, the Trumpf suit wins; otherwise the order of play decides');
+ok(api.weisCompare(W('e:U s:U t:U r:U','four'),W('r:A r:K r:O'),'schelle')===1&&api.weisCompare(W('e:9 s:9 t:9 r:9','four'),W('e:A s:A t:A r:A','four'),'schelle')===1,'Weis: four Under beat a short row, four nines beat four Asses');
+const seenW={},seenS={};
+for(let i=0;i<3000;i++){
+  for(const m of ['oben','unde']){
+    let q=api.qMWinner(m);
+    ok(q.cards.length===4&&uniq(q.cards)&&q.led===q.cards[0].s&&q.answer===refWinM(q.cards,m)&&q.cards.some(c=>c.s!==q.led)&&q.mode===m&&q.cards[q.answer].s===q.led,'mwinner '+m);
+    q=api.qMStronger(m);ok(q.cards.length===2&&q.cards[0].s===q.cards[1].s&&q.cards[0].r!==q.cards[1].r&&q.answer===refWinM(q.cards,m),'mstronger '+m);
+    q=api.qMValue(m);ok(q.answer===REF[m].pts[q.cards[0].r]&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===q.answer),'mvalue '+m);
+    q=api.qMCount(m);ok(q.cards.length===4&&uniq(q.cards)&&q.answer===q.cards.reduce((n,c)=>n+REF[m].pts[c.r],0)&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===q.answer)&&q.options.every(o=>o.id>=0),'mcount '+m);
+  }
+  for(const kind of ['seq3','seq4','seq5','four','none','three']){
+    const q=api.qWeisFind(kind),ws=refWeis(q.cards);
+    ok(q.cards.length===9&&uniq(q.cards)&&ws.length<=1&&q.answer===(ws[0]?ws[0].pts:0)&&q.options.some(o=>o.id===q.answer)&&J(q.mark.map(k=>key(q.cards[k])).sort())===J(ws[0]?ws[0].keys.sort():[])&&(kind==='none'||kind==='three'?q.answer===0:q.answer>=20),'weisfind '+kind);
+    if(kind==='three')ok('AKOUB9'.split('').some(r=>q.cards.filter(c=>c.r===r).length===3),'weisfind three: three of a kind are in the hand');
+    seenW[q.answer]=(seenW[q.answer]||0)+1;
+  }
+  for(const v of ['value','kind','top','trump']){
+    const q=api.qWeisCmp(v),a=refWeis(q.mine),b=refWeis(q.theirs);
+    ok(uniq(q.mine.concat(q.theirs))&&a.length===1&&b.length===1&&a[0].keys.length===q.mine.length&&b[0].keys.length===q.theirs.length,'weiscmp '+v+': each side shows exactly one Weis');
+    // who is higher, decided here step by step
+    const top=cs=>Math.min(...cs.map(c=>'AKOUB9876'.indexOf(c.r))),isSeq=cs=>new Set(cs.map(c=>c.s)).size===1;
+    let win=a[0].pts!==b[0].pts?(a[0].pts>b[0].pts?'mine':'theirs'):isSeq(q.mine)!==isSeq(q.theirs)?(isSeq(q.mine)?'mine':'theirs'):top(q.mine)!==top(q.theirs)?(top(q.mine)<top(q.theirs)?'mine':'theirs'):q.mine[0].s===q.trump?'mine':q.theirs[0].s===q.trump?'theirs':'nobody';
+    ok(q.answer===win,'weiscmp '+v+': the higher Weis is '+win);
+    if(v==='kind')ok(a[0].pts===100&&b[0].pts===100&&isSeq(q.mine)!==isSeq(q.theirs),'weiscmp kind: 100 against 100, row against four');
+    if(v==='trump')ok(top(q.mine)===top(q.theirs)&&q.mine.length===q.theirs.length&&(q.mine[0].s===q.trump)!==(q.theirs[0].s===q.trump),'weiscmp trump: only the Trumpf suit tells them apart');
+  }
+  let q=api.qWeisWrite();
+  ok(Math.max(q.a,q.b)!==q.c&&q.answer===(Math.max(q.a,q.b)>q.c?q.a+q.b:0)&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===q.answer)&&q.lines.length===3,'weiswrite: only the team with the highest single Weis writes, and then everything');
+  for(const v of ['yes','othersuit','split','oben']){
+    q=api.qStoeck(v);const t=q.trump,both=!!t&&q.cards.some(c=>c.s===t&&c.r==='K')&&q.cards.some(c=>c.s===t&&c.r==='O');
+    ok(q.cards.length===5&&uniq(q.cards)&&q.answer===(both?'yes':'no')&&(v==='yes')===both&&(v==='oben'?!q.trump&&!!q.mode:!!q.trump&&!q.mode)&&q.cards.filter(c=>c.r==='K').length===1&&q.cards.filter(c=>c.r==='O').length===1,'stoeck '+v);
+    seenS[v+':'+q.answer]=1;
+  }
+}
+ok([0,20,50,100,150,200].every(v=>seenW[v]>50),'every Weis value occurs: '+J(seenW));
+ok(Object.keys(seenS).sort().join()==='oben:no,othersuit:no,split:no,yes:yes','Stöck: one yes, three kinds of no');
+api.MC_WEIS.forEach((m,i)=>{const q=api.qMC(api.MC_WEIS,i,true);ok(q.options.find(o=>o.id===q.answer).label===m.options[0]&&m.answer===0&&q.options.length===4,'mc Weis '+i)});
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

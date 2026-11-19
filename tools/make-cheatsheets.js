@@ -160,6 +160,55 @@ function build(which) {
       + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
       + foot(3) + '</div>';
   }
+  if (which === 7) {
+    const rowOf = m => orderM(m).map(r => { const c = { s: 'rose', r }, pts = pointsM(c, m); return '<div class="c">' + cardSVG(c) + '<b>' + rankOf(r).name + '</b><span class="pts' + (pts ? '' : ' zero') + '">' + pts + '</span></div>'; }).join('');
+    for (const m of ['oben', 'unde']) if (deck().reduce((n, c) => n + pointsM(c, m), 0) !== 152) throw new Error('points on sheet 7 do not add up');
+    const trick = [{ s: 'rose', r: 'K' }, { s: 'rose', r: '7' }, { s: 'schelle', r: '6' }, { s: 'rose', r: 'O' }];
+    const mini = (title, win, text) => '<div class="mini"><div class="cards">' + trick.map((c, i) => '<div class="t' + (i === win ? ' win' : '') + '">' + cardSVG(c)
+      + '<span>' + (i === win ? '<span class="tag w">wins</span>' : i === 0 ? '<span class="tag">led</span>' : '<span class="tag" style="visibility:hidden">x</span>') + '</span></div>').join('') + '</div><b>' + title + '</b><p>' + text + '</p></div>';
+    const wO = trickWinnerM(trick, 'oben'), wU = trickWinnerM(trick, 'unde'), wT = trickWinnerT(trick, 'schelle');
+    if (wO !== 0 || wU !== 1 || wT !== 2) throw new Error('the three-games example on sheet 7 no longer matches the rules');
+    const words = WORDS4.slice(0, 2).map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page tight">'
+      + head('Cheat sheet 7 · Chapter 4', 'Obenabe and Undenufe', 'Obenabe oder Undenufe?', 'Top-down or bottom-up?')
+      + '<section class="box"><b>Two games without Trumpf.</b> No suit is the boss, so nobody can trump, and there is no Puur and no Nell. Follow suit if you can. If you cannot, throw any card you like: it cannot win the trick.</section>'
+      + '<section><h2>Obenabe: top-down</h2><div class="scale"><span>strongest</span><span>weakest</span></div><div class="row">' + rowOf('oben') + '</div></section>'
+      + '<section><h2>Undenufe: bottom-up</h2><div class="scale"><span>strongest</span><span>weakest</span></div><div class="row">' + rowOf('unde') + '</div></section>'
+      + '<section><h2>One trick, three games: the König of Rose is led every time</h2><div class="minis">'
+      + mini('Obenabe', wO, 'The highest Rose wins: the König. The 6 of Schelle is the wrong suit.')
+      + mini('Undenufe', wU, 'The lowest Rose wins: the 7. The 6 of Schelle is still the wrong suit.')
+      + mini('Schelle is Trumpf', wT, 'Now the 6 of Schelle is a Trumpf, and the smallest Trumpf beats everything.')
+      + '</div></section>'
+      + '<section class="two"><div><h2>What changes in the points</h2><table><tr><td>Every 8</td><td>8 points, in both games</td></tr><tr><td>Undenufe</td><td>the 6 is worth 11, the Ass nothing</td></tr><tr><td>Puur and Nell</td><td>do not exist: Under 2, 9 nothing</td></tr><tr><td>One round</td><td><b>157 points</b>, as always</td></tr></table></div>'
+      + '<div><h2>Words you will hear</h2><table>' + words + '</table><p class="dim" style="margin-top:6px">Vorhand may name either game instead of a Trumpf suit. So may her partner after a push.</p></div></section>'
+      + foot(7) + '</div>';
+  }
+  if (which === 8) {
+    const pc = (s, r, extra) => '<div class="pc' + (extra ? ' ' + extra : '') + '">' + cardSVG({ s, r }) + '</div>';
+    const H = str => str.split(' ').map(x => { const a = x.split(':'); return { s: { e: 'eichle', r: 'rose', s: 'schelle', t: 'schilte' }[a[0]], r: a[1] }; });
+    const row3 = H('r:A r:K r:O'), four = H('e:U r:U s:U t:U');
+    if (findWeis(row3)[0].pts !== 20 || findWeis(four)[0].pts !== 200 || findWeis(H('r:7 r:6 r:A')).length !== 0) throw new Error('a Weis example on sheet 8 is wrong');
+    if (weisCompare({ kind: 'seq', suit: 'rose', top: 'B', len: 5, pts: 100 }, { kind: 'four', top: 'A', len: 4, pts: 100 }, 'eichle') !== 1) throw new Error('the tie-break on sheet 8 is wrong');
+    const T = 'schelle';
+    const words = WORDS4.slice(2).map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page">'
+      + head('Cheat sheet 8 · Chapter 4', 'Weis and Stöck', 'Stöck!', 'König and Ober of Trumpf: 20 points.')
+      + '<section class="two"><div><h2>Rows in one suit</h2><div class="pcs">' + row3.map(c => pc(c.s, c.r)).join('') + '</div>'
+      + '<table style="margin-top:6px"><tr><td>3 in a row</td><td>20</td></tr><tr><td>4 in a row</td><td>50</td></tr><tr><td>5 in a row</td><td>100</td></tr><tr><td>6 in a row</td><td>150</td></tr><tr><td>7, 8, 9 in a row</td><td>200, 250, 300</td></tr></table></div>'
+      + '<div><h2>Four of a kind</h2><div class="pcs">' + four.map(c => pc(c.s, c.r)).join('') + '</div>'
+      + '<table style="margin-top:6px"><tr><td>4 Under</td><td>200</td></tr><tr><td>4 nines</td><td>150</td></tr><tr><td>4 Asses, Könige, Ober or Banner</td><td>100</td></tr><tr><td>4 eights, sevens or sixes</td><td>nothing</td></tr><tr><td>3 of a kind</td><td>nothing</td></tr></table></div></section>'
+      + '<section class="box"><b>The order for rows never changes:</b> Ass, König, Ober, Under, Banner, 9, 8, 7, 6. Also in the Trumpf suit, where the Under stays between Ober and Banner. No gaps, and not round the corner: 7, 6, Ass is nothing.</section>'
+      + '<section><h2>Whose Weis counts?</h2><div class="rules">'
+      + '<div class="rule"><span class="num">1</span><div><b>Announce it in the first trick.</b>Say your Weis when you play your first card. Later is too late.</div></div>'
+      + '<div class="rule"><span class="num">2</span><div><b>Only one team writes.</b>The team with the single highest Weis. The other team writes nothing.</div></div>'
+      + '<div class="rule"><span class="num">3</span><div><b>That team writes everything.</b>Every Weis that both partners hold, also the small ones.</div></div>'
+      + '<div class="rule"><span class="num">4</span><div><b>Same value?</b>A row beats four of a kind. Then the higher top card (in Undenufe the lower). Then the Trumpf suit. Then whoever played first.</div></div>'
+      + '</div></section>'
+      + '<section class="two"><div><h2>Stöck</h2><div class="pcs" style="align-items:center">' + pc(T, 'K') + pc(T, 'O') + '<span style="margin-left:8px"><span class="chip">' + symSVG(T) + suitOf(T).name + '</span> is Trumpf</span></div>'
+      + '<ul style="margin-top:6px"><li>König and Ober of the Trumpf suit in one hand: <b>20 points</b>.</li><li>Call «Stöck» when you play the second of the two.</li><li>Not a Weis: Stöck always count.</li><li>No Trumpf suit, no Stöck: none in Obenabe or Undenufe.</li></ul></div>'
+      + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
+      + foot(8) + '</div>';
+  }
   if (which === 6) {
     const pc = (s, r, tag, cls, extra) => '<div class="pc' + (extra ? ' ' + extra : '') + '">' + cardSVG({ s, r }) + '<span class="tag ' + (cls || '') + '"' + (tag ? '' : ' style="visibility:hidden"') + '>' + (tag || 'x') + '</span></div>';
     // every example is checked against the app's own rules before it is printed
@@ -273,6 +322,8 @@ const SHEETS = [
   [4, 'jass-cheat-sheet-4-what-may-i-play.pdf', 'Jass cheat sheet 4: What may I play?'],
   [5, 'jass-cheat-sheet-5-ansagen-or-schieben.pdf', 'Jass cheat sheet 5: Ansagen or Schieben?'],
   [6, 'jass-cheat-sheet-6-playing-well.pdf', 'Jass cheat sheet 6: Playing well'],
+  [7, 'jass-cheat-sheet-7-obenabe-and-undenufe.pdf', 'Jass cheat sheet 7: Obenabe and Undenufe'],
+  [8, 'jass-cheat-sheet-8-weis-and-stoeck.pdf', 'Jass cheat sheet 8: Weis and Stöck'],
 ];
 
 (async () => {

@@ -133,6 +133,11 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .badge{width:24px;height:24px;flex:0 0 auto}
 .tag.win{background:var(--good)}
 .tag.rule{background:#d9d4c6}
+.wt{display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;font-variant-numeric:tabular-nums}
+.wt div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #3a4145;padding:2px 0}
+.trumpchip em{font-style:normal;font-size:12.5px;opacity:.8;margin-left:2px}
+.lines{align-self:stretch;margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:16.5px}
+.lines li{background:rgba(0,0,0,.22);border-radius:8px;padding:7px 10px}
 .kind .tag{margin-right:3px}
 .levels{display:flex;flex-direction:column;gap:5px;font-size:15px}
 .levels div{display:flex;gap:8px;align-items:baseline;opacity:.55}
@@ -835,6 +840,146 @@ function qPull(){
     line:['Aazieh!','Lure the Ass out.','aazieh'],kind:'both'});
 }
 
+/* ---------- Chapter 4: Obenabe, Undenufe, Weis and Stöck ---------- */
+const MODE_NAME={oben:'Obenabe',unde:'Undenufe'};
+const PLAIN=RANKS.map(r=>r.id);                                    // Ass ... 6
+const orderM=m=>m==='unde'?PLAIN.slice().reverse():PLAIN;           // strongest first
+// No Trumpf, so no Puur and no Nell. Every 8 counts 8. In Undenufe the 6 takes the place of the Ass: 11 for the 6, nothing for the Ass.
+const pointsM=(c,m)=>c.r==='8'?8:m==='unde'&&c.r==='6'?11:m==='unde'&&c.r==='A'?0:rankOf(c.r).pts;
+function trickWinnerM(cards,m){const o=orderM(m),led=cards[0].s;let w=0;cards.forEach((c,i)=>{if(c.s===led&&o.indexOf(c.r)<o.indexOf(cards[w].r))w=i});return w}
+const numOpts=(answer,cand)=>{const o=[answer];for(const n of cand){if(o.length<4&&n>=0&&!o.includes(n))o.push(n)}return o.sort((a,b)=>a-b).map(n=>({id:n,label:String(n)}))};
+
+function qMWinner(m){
+  const p=shuffle(deck()),led=pick(SUITS).id,isL=c=>c.s===led,n=2+rnd(2),tempting=m==='unde'?'67':'AK';
+  const first=takeFrom(p,isL,1);
+  let rest=takeFrom(p,isL,n-1).concat(takeFrom(p,c=>!isL(c)&&tempting.includes(c.r),1));
+  rest=shuffle(rest.concat(takeFrom(p,c=>!isL(c),3-rest.length)));
+  const cards=first.concat(rest),w=trickWinnerM(cards,m),ln=suitOf(led).name,off=cards.find(c=>!isL(c));
+  return {type:'mwinner',mode:m,cards,led,answer:w,prompt:MODE_NAME[m]+'. Who wins the trick?',
+    explain:(m==='unde'?'Undenufe turns the order upside down: the lowest card of the suit led wins. ':'In Obenabe there is no Trumpf, so nobody can trump. ')
+      +ln+' was led, and the '+(m==='unde'?'lowest':'highest')+' '+ln+' on the table is the '+rankOf(cards[w].r).name+'. The '+cardName(off)+' is the wrong suit and cannot win.'};
+}
+function qMStronger(m){
+  const s=pick(SUITS).id,r=shuffle(PLAIN).slice(0,2),cards=r.map(x=>({s,r:x})),w=trickWinnerM(cards,m);
+  return {type:'mstronger',mode:m,cards,answer:w,prompt:MODE_NAME[m]+'. Which card is stronger?',
+    explain:m==='unde'?'In Undenufe the lower card is the stronger one: the '+rankOf(cards[w].r).name+' beats the '+rankOf(cards[1-w].r).name+'.'
+      :'In Obenabe the order is the one you know: the '+rankOf(cards[w].r).name+' beats the '+rankOf(cards[1-w].r).name+'.'};
+}
+function qMValue(m){
+  const c={s:pick(SUITS).id,r:pick(m==='unde'?['6','A','8','6','A','7','K','B']:['8','8','A','B','9','7','8','K'])},v=pointsM(c,m),n=rankOf(c.r).name;
+  const why=c.r==='8'?'In '+MODE_NAME[m]+' every 8 is worth 8 points.'
+    :m==='unde'&&c.r==='6'?'In Undenufe the 6 is the top card and takes the 11 points of the Ass.'
+    :m==='unde'&&c.r==='A'?'In Undenufe the Ass is the weakest card and worth nothing.'
+    :'The '+n+' is worth '+v+', as in every other game.';
+  return {type:'mvalue',mode:m,cards:[c],answer:v,options:numOpts(v,shuffle([0,2,3,4,8,10,11])),prompt:MODE_NAME[m]+'. How many points is this card worth?',explain:why};
+}
+function qMCount(m){
+  let cards;const special=m==='unde'?'86A':'8';
+  do{cards=shuffle(deck()).slice(0,4)}while(!cards.some(c=>special.includes(c.r)));
+  const total=cards.reduce((n,c)=>n+pointsM(c,m),0);
+  return {type:'mcount',mode:m,cards,answer:total,options:numOpts(total,shuffle([total+8,total-8,total+11,total-11,total+2,total-2,total+3,total+10])),
+    prompt:MODE_NAME[m]+'. How many points are in this trick?',
+    explain:cards.map(c=>rankOf(c.r).name+' '+pointsM(c,m)).join(' + ')+' = '+total+'.'};
+}
+
+// ----- Weis: rows of three or more in one suit, and four of a kind
+const SEQ_PTS={3:20,4:50,5:100,6:150,7:200,8:250,9:300},FOUR_PTS={U:200,'9':150,A:100,K:100,O:100,B:100};
+const SEQ_WORD={3:'three',4:'four',5:'five',6:'six',7:'seven',8:'eight',9:'nine'};
+function findWeis(hand){
+  const out=[],has=(s,r)=>hand.some(c=>c.s===s&&c.r===r);
+  for(const x of SUITS){
+    let run=[];
+    PLAIN.concat([null]).forEach(r=>{
+      if(r&&has(x.id,r)){run.push(r);return}
+      if(run.length>=3)out.push({kind:'seq',suit:x.id,top:run[0],len:run.length,pts:SEQ_PTS[run.length],cards:run.map(q=>({s:x.id,r:q}))});
+      run=[];
+    });
+  }
+  for(const r of Object.keys(FOUR_PTS))if(SUITS.every(x=>has(x.id,r)))out.push({kind:'four',top:r,len:4,pts:FOUR_PTS[r],cards:SUITS.map(x=>({s:x.id,r}))});
+  return out;
+}
+const weisName=w=>w.kind==='four'?'four '+(w.top==='9'?'nines':w.top==='A'?'Asses':rankOf(w.top).name+(w.top==='K'?'e':'')):SEQ_WORD[w.len]+' in a row';
+// 1 if a is the higher Weis, -1 if b is, 0 if only the order of play could decide
+function weisCompare(a,b,t){
+  if(a.pts!==b.pts)return a.pts>b.pts?1:-1;
+  if(a.kind!==b.kind)return a.kind==='seq'?1:-1;
+  if(a.top!==b.top)return PLAIN.indexOf(a.top)<PLAIN.indexOf(b.top)?1:-1;
+  const at=a.kind==='seq'&&a.suit===t,bt=b.kind==='seq'&&b.suit===t;
+  return at===bt?0:at?1:-1;
+}
+const WEIS_OPTS=()=>[{id:0,label:'No Weis'}].concat([20,50,100,150,200].map(n=>({id:n,label:String(n)})));
+function qWeisFind(kind){                  // 'seq3' 'seq4' 'seq5' 'four' 'none' 'three'
+  let hand,ws;
+  for(let tries=0;tries<600;tries++){
+    const p=shuffle(deck());hand=[];
+    if(kind.indexOf('seq')===0){const L=+kind.slice(3),x=pick(SUITS).id,a=rnd(10-L),rs=PLAIN.slice(a,a+L);hand=takeFrom(p,c=>c.s===x&&rs.includes(c.r),L)}
+    if(kind==='four'){const r=pick(['A','K','O','B','9','U','U','9']);hand=takeFrom(p,c=>c.r===r,4)}
+    if(kind==='three'){const r=pick(['A','K','O','U','B','9']);hand=takeFrom(p,c=>c.r===r,3)}
+    hand=hand.concat(p.slice(0,9-hand.length));ws=findWeis(hand);
+    const long=SUITS.some(x=>cnt(hand,x.id)>=3);
+    if(kind==='none'||kind==='three'?ws.length===0&&long:ws.length===1&&ws[0].pts<=200)break;
+  }
+  sortHand(hand);
+  const w=ws[0],mark=w?hand.map((c,i)=>w.cards.some(k=>k.s===c.s&&k.r===c.r)?i:-1).filter(i=>i>=0):[];
+  const explain=!w?(kind==='three'?'No Weis. Three of a kind count nothing: it takes all four. And none of your suits has three neighbours in a row.':'No Weis. A row needs three neighbours in one suit, with no gap. Four of a kind needs all four suits.')
+    :w.kind==='four'?capFirst(weisName(w))+': '+w.pts+' points.'+(w.top==='U'?' Four Under are the highest four of a kind.':w.top==='9'?' Four nines are worth more than four Asses.':'')
+    :w.cards.map(c=>rankOf(c.r).name).join(', ').replace(/, ([^,]*)$/,' and $1')+' of '+suitOf(w.suit).name+': '+SEQ_WORD[w.len]+' in a row, '+w.pts+' points.';
+  return {type:'weisfind',cards:hand,mark,options:WEIS_OPTS(),answer:w?w.pts:0,prompt:'How much is the Weis in this hand worth?',explain};
+}
+function qWeisCmp(v){                      // 'value' 'kind' 'top' 'trump'
+  const su=shuffle(SUITS).map(x=>x.id),t=su[0],seq=(x,a,L)=>({kind:'seq',suit:x,top:PLAIN[a],len:L,pts:SEQ_PTS[L],cards:PLAIN.slice(a,a+L).map(r=>({s:x,r}))});
+  let a,b;
+  if(v==='value'){const L=pick([[4,3],[5,3],[5,4]]);a=seq(su[1],rnd(10-L[0]),L[0]);b=seq(su[2],rnd(10-L[1]),L[1])}
+  if(v==='kind'){const r=pick(['A','K','O']);          // a five-card row always contains the Banner, so four Banner cannot sit beside one
+   b={kind:'four',top:r,len:4,pts:100,cards:SUITS.map(x=>({s:x.id,r}))};
+    let st;do{st=rnd(5)}while(PLAIN.slice(st,st+5).includes(r));a=seq(su[1],st,5)}
+  if(v==='top'){const L=3+rnd(2),i=rnd(9-L);a=seq(su[1],i,L);b=seq(su[2],i+1+rnd(9-L-i),L)}
+  if(v==='trump'){const L=3+rnd(2),i=rnd(10-L);a=seq(t,i,L);b=seq(su[1],i,L)}
+  const mineWins=Math.random()<.5,mine=mineWins?a:b,theirs=mineWins?b:a;
+  const why={value:capFirst(weisName(a))+' is worth '+a.pts+', '+weisName(b)+' only '+b.pts+'. The higher value wins.',
+    kind:'Both are worth 100. Then a row beats four of a kind.',
+    top:'Both rows are worth '+a.pts+'. Then the higher top card decides: the '+rankOf(a.top).name+' stands above the '+rankOf(b.top).name+'.',
+    trump:'Same length, same top card. Then the row in the Trumpf suit wins, and Trumpf is '+suitOf(t).name+'.'}[v];
+  return {type:'weiscmp',trump:t,cards:[],mine:mine.cards,theirs:theirs.cards,v,options:[{id:'mine',label:'Ours'},{id:'theirs',label:'Theirs'}],answer:mineWins?'mine':'theirs',
+    prompt:'Both teams have a Weis. Whose is higher?',explain:why+' Only the team with the higher Weis writes.'};
+}
+function qWeisWrite(){
+  const vals=[20,50,100],word={20:'three in a row',50:'four in a row',100:'five in a row'};
+  let a,b,c;do{a=pick(vals);b=pick([0,0,20,50]);c=pick(vals)}while(Math.max(a,b)===c);
+  const ours=Math.max(a,b)>c,answer=ours?a+b:0;
+  return {type:'weiswrite',cards:[],lines:['<b>You:</b> '+word[a]+' ('+a+')','<b>Your partner:</b> '+(b?word[b]+' ('+b+')':'nothing'),'<b>The other team:</b> '+word[c]+' ('+c+')'],
+    a,b,c,answer,options:numOpts(answer,[0,a,a+b,c,a+c,a+b+c,Math.max(a,b)]),prompt:'How much Weis does your team write?',
+    explain:ours?'Your team holds the highest single Weis ('+Math.max(a,b)+' against '+c+'). So your team writes everything both of you hold: '+(b?a+' + '+b+' = ':'')+(a+b)+'. The other team writes nothing.'
+      :'The other team holds the highest single Weis ('+c+' against '+Math.max(a,b)+'). So only they write. Your team writes nothing'+(a+b>c?', even though your two together would be more.':'.')};
+}
+function qStoeck(v){                       // 'yes' 'othersuit' 'split' 'oben'
+  const p=shuffle(deck()),su=shuffle(SUITS).map(x=>x.id),t=su[0],X=su[1],m=v==='oben'?pick(['oben','unde']):null;
+  let hand=v==='yes'?[{s:t,r:'K'},{s:t,r:'O'}]:v==='split'?[{s:t,r:'K'},{s:X,r:'O'}]:[{s:X,r:'K'},{s:X,r:'O'}];
+  const taken=c=>hand.some(h=>h.s===c.s&&h.r===c.r);
+  hand=hand.concat(p.filter(c=>!taken(c)&&!'KO'.includes(c.r)).slice(0,3));sortHand(hand);
+  const yes=v==='yes',tn=suitOf(t).name,Xn=suitOf(X).name;
+  return {type:'stoeck',trump:m?undefined:t,mode:m||undefined,cards:hand,v,options:[{id:'yes',label:'Yes',sub:'Stöck, 20 points'},{id:'no',label:'No',sub:'no Stöck'}],answer:yes?'yes':'no',
+    prompt:'Do you hold Stöck?',
+    explain:yes?'König and Ober of '+tn+', and '+tn+' is Trumpf. That is Stöck: 20 points. You call it when you play the second of the two.'
+      :v==='split'?'You hold the König of Trumpf, but your Ober is a '+Xn+'. Stöck needs both, König and Ober, of the Trumpf suit.'
+      :v==='oben'?'König and Ober of '+Xn+' sit together in your hand, but in '+MODE_NAME[m]+' there is no Trumpf suit. No Trumpf, no Stöck.'
+      :'König and Ober of '+Xn+' sit together in your hand, but Trumpf is '+tn+'. Only König and Ober of the Trumpf suit are Stöck.'};
+}
+const MC_WEIS=[
+  {prompt:'When do you announce your Weis?',options:['When I play my card in the first trick','Before Trumpf is named','After the last trick','Whenever I notice it'],answer:0,
+    hint:'A Weis belongs to the very beginning of a round.',explain:'You announce your Weis in the first trick, when you play your card. Later is too late.'},
+  {prompt:'When do you call «Stöck»?',options:['When I play the second of the two cards','When I play the first of the two cards','In the first trick, like a Weis','At the end, when the points are counted'],answer:0,
+    hint:'Nobody should know too early that you hold both.',explain:'You call «Stöck» when you play the second of the two cards, König or Ober. Then the 20 points are yours.'},
+  {prompt:'The other team has the higher Weis. You hold Stöck. What happens to your 20 points?',options:['They count anyway','They are lost','They go to the other team','They count only half'],answer:0,
+    hint:'Stöck are not a Weis.',explain:'Stöck are not a Weis, so the other team’s Weis cannot push them aside. Your 20 points count.'},
+  {prompt:'It is Obenabe, and you hold König and Ober of Rose. Do you have Stöck?',options:['No. Without a Trumpf suit there are no Stöck','Yes, 20 points','Yes, but only if I announce it in the first trick','Only if my partner agrees'],answer:0,
+    hint:'Stöck belong to the Trumpf suit.',explain:'Stöck are König and Ober of the Trumpf suit. Obenabe and Undenufe have no Trumpf suit, so there are no Stöck.'},
+  {prompt:'You hold the 7, the 6 and the Ass of one suit. Is that a Weis?',options:['No. A row does not go round the corner','Yes, three in a row: 20','Yes, but only in Undenufe','Yes, but only in the Trumpf suit'],answer:0,
+    hint:'The row runs from the Ass down to the 6, and it ends there.',explain:'A row follows Ass, König, Ober, Under, Banner, 9, 8, 7, 6 and stops at both ends. From the 6 back to the Ass is round the corner, and that does not count.'},
+  {prompt:'In the Trumpf suit the Under is the Puur, the strongest card. Which order do rows follow there?',options:['The same as everywhere: Ass, König, Ober, Under, Banner, 9','The Trumpf order: Puur, Nell, Ass, König','Rows do not count in the Trumpf suit','Whichever gives more points'],answer:0,
+    hint:'For a Weis the cards keep their old places.',explain:'For a Weis the order never changes, not even in the Trumpf suit: Ass, König, Ober, Under, Banner, 9, 8, 7, 6.'}
+];
+
 const STAGES=[
   {ch:1,title:'Meet the cards',blurb:'Four suits, nine cards each. None of it looks like a poker deck.',lessons:[
     {title:'The four suits',help:0,n:6,intro:'suits',
@@ -954,6 +1099,43 @@ const STAGES=[
     {title:'Check: play as a team',help:2,n:10,check:true,
       text:'Ten situations, no help. Get eight right, and Chapter 3 is yours.',
       gen:i=>[qDraw,()=>qSmear(true),qDiscard,qPull,()=>qSmear(false),qCash,qRead,()=>qSmear(true),qDiscard,qDraw][i%10]()}
+  ]},
+  {ch:4,title:'Obenabe and Undenufe',blurb:'Two games without any Trumpf. One runs top-down, the other bottom-up.',lessons:[
+    {title:'Obenabe: no Trumpf',help:0,n:6,intro:'oben',
+      text:'Vorhand has two more things to name. The first is Obenabe{obenabe}, top-down. No suit is Trumpf. The order is the one you learned first, Ass on top and 6 at the bottom, in every suit. Nobody can trump, so the highest card of the suit led always wins.',
+      gen:()=>qMWinner('oben')},
+    {title:'The eights count',help:0,n:6,intro:'oben',
+      text:'Without Trumpf there is no Puur and no Nell, and their big points are gone. To make up for it, every 8 is now worth 8 points. Everything else counts as usual, and a round still adds up to 157.',
+      gen:i=>i%2?qMCount('oben'):qMValue('oben')},
+    {title:'Undenufe: upside down',help:0,n:6,intro:'unde',
+      text:'The second is Undenufe{undenufe}, bottom-up. Again no Trumpf, but now the whole order is turned on its head: the 6 is the strongest card and the Ass the weakest. The lowest card of the suit led wins the trick.',
+      gen:i=>i%2?qMStronger('unde'):qMWinner('unde')},
+    {title:'Undenufe: the points',help:1,n:6,intro:'unde',
+      text:'In Undenufe the 6 does the job of the Ass, so it also gets its points: the 6 is worth 11 and the Ass nothing. The 8 is worth 8 again. König, Ober, Under and Banner keep their points.',
+      gen:i=>i%2?qMCount('unde'):qMValue('unde')},
+    {title:'Three games, one table',help:1,n:6,
+      text:'Now mixed. Before every trick, read the gold tag: is a suit Trumpf, or is it Obenabe, or Undenufe? The same four cards can have three different winners.',
+      gen:i=>[()=>qMWinner('oben'),()=>qMWinner('unde'),()=>qTWinner()][i%3]()},
+    {title:'Check: no Trumpf',help:2,n:10,check:true,
+      text:'Ten questions, no help. Get eight right to open the next stage.',
+      gen:i=>[()=>qMWinner('oben'),()=>qMWinner('unde'),()=>qMValue('unde'),()=>qMCount('oben'),()=>qMStronger('unde'),()=>qMCount('unde'),()=>qMWinner('unde'),()=>qMValue('oben'),()=>qTWinner(),()=>qMWinner('oben')][i%10]()}
+  ]},
+  {ch:4,title:'Weis and Stöck',blurb:'Points for the cards you are dealt, before a single trick is won.',lessons:[
+    {title:'Three in a row',help:0,n:6,intro:'weis',
+      text:'A Weis{wys} is a bonus for the cards you were dealt. Three cards in a row in one suit are worth 20, four are worth 50, five are worth 100. The row follows Ass, König, Ober, Under, Banner, 9, 8, 7, 6, also in the Trumpf suit, and it must have no gap.',
+      gen:i=>qWeisFind(['seq3','none','seq4','seq3','seq5','none'][i%6])},
+    {title:'Four of a kind',help:0,n:6,intro:'weis',
+      text:'The other kind of Weis is four of a kind: the same card in all four suits. Four Asses, Könige, Ober or Banner are worth 100. Four nines are worth 150, and four Under 200. Three of a kind are worth nothing.',
+      gen:i=>qWeisFind(['four','three','four','seq4','four','none'][i%6])},
+    {title:'Whose Weis counts?',help:1,n:6,
+      text:'Only one team writes its Weis: the team with the single highest one. That team then writes everything both partners hold, and the other team writes nothing. Same value? A row beats four of a kind. Two equal rows? The higher top card wins, and after that the Trumpf suit.',
+      gen:i=>i%2?qWeisWrite():qWeisCmp(['value','kind','top'][(i/2)|0])},
+    {title:'Stöck',help:1,n:6,
+      text:'One more bonus, and it is not a Weis. König and Ober of the Trumpf suit in one hand are called Stöck{stoeck}, worth 20 points. You call it when you play the second of the two. Stöck always count, whatever Weis the other team holds. Without a Trumpf suit there are no Stöck.',
+      gen:i=>i%2?qMC(MC_WEIS,1+((i/2)|0),true):qStoeck(['yes','othersuit','oben'][(i/2)|0])},
+    {title:'Check: Weis and Stöck',help:2,n:10,check:true,
+      text:'Ten questions, no help. Get eight right, and you know every way to score before the first trick.',
+      gen:i=>[()=>qWeisFind('seq3'),()=>qWeisFind('four'),()=>qWeisCmp('kind'),()=>qStoeck('yes'),()=>qWeisFind('none'),()=>qWeisWrite(),()=>qStoeck(pick(['split','othersuit','oben'])),()=>qWeisFind('seq4'),()=>qMC(MC_WEIS,rnd(MC_WEIS.length),true),()=>qWeisCmp(pick(['value','top','trump']))][i%10]()}
   ]}
 ];
 const PASS=.8;
@@ -1153,7 +1335,9 @@ const SHEETS=[
   ['cheatsheets/jass-cheat-sheet-3-trumpf.pdf','3 · Trumpf','Puur and Nell, the order and the points in the Trumpf suit, and the 157.'],
   ['cheatsheets/jass-cheat-sheet-4-what-may-i-play.pdf','4 · What may I play?','Following suit, trumping and the ban on undertrumping, with one hand worked out.'],
   ['cheatsheets/jass-cheat-sheet-5-ansagen-or-schieben.pdf','5 · Ansagen or Schieben?','Who speaks first, when to name Trumpf yourself and when to push.'],
-  ['cheatsheets/jass-cheat-sheet-6-playing-well.pdf','6 · Playing well','Bock, counting Trumpf, and four proven tactics and signals.']
+  ['cheatsheets/jass-cheat-sheet-6-playing-well.pdf','6 · Playing well','Bock, counting Trumpf, and four proven tactics and signals.'],
+  ['cheatsheets/jass-cheat-sheet-7-obenabe-and-undenufe.pdf','7 · Obenabe and Undenufe','The two games without Trumpf: order and points side by side.'],
+  ['cheatsheets/jass-cheat-sheet-8-weis-and-stoeck.pdf','8 · Weis and Stöck','What a Weis is worth, whose Weis counts, and the 20 points for Stöck.']
 ];
 function sheetsHTML(){
   if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
@@ -1161,13 +1345,18 @@ function sheetsHTML(){
 }
 const extLink=(url,label)=>'<a class="ghost link" href="'+url+'">'+label+'</a>';
 const songLink=label=>extLink(SONG_URL,label);
-const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf',3:'Chapter 3 · Playing well'};
+const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf',3:'Chapter 3 · Playing well',4:'Chapter 4 · The full game'};
 const WORDS2=[['trumpf','Trumpf','troompf','the boss suit of a round'],['puur','Puur','poor','the Under of Trumpf, strongest card of all'],['nell','Nell','nell','the 9 of Trumpf, second strongest'],['steche','Steche','SHTEKH-eh','to take a trick with a Trumpf'],['untertrumpfe','Untertrumpfe','OON-ter-troomp-feh','to play a lower Trumpf on a trumped trick. Not allowed.'],['vorhand','Vorhand','FOR-hahnt','the player to the right of the dealer. She speaks first and plays first.'],['gschobe','Gschobe!','KSHOH-beh','«pushed»: my partner has to name Trumpf']];
 const WORDS3=[['bock','Bock','bock','the highest card of a suit that is still out'],['trumpf-uszieh','Trumpf uszieh','troompf OOS-tsee-eh','to lead Trumpf and pull the other team’s Trumpf out'],['schmiere','Schmiere','SHMEE-reh','to put points on a trick your partner is sure to win'],['verwerfe','Verwerfe','fer-VER-feh','to throw a card away when you cannot follow suit; it shows your weak suit'],['aazieh','Aazieh','AH-tsee-eh','to lead your strong suit and try to lure the high card out']];
+const WORDS4=[['obenabe','Obenabe','OH-beh-NAH-beh','top-down: no Trumpf, the Ass is highest'],['undenufe','Undenufe','OON-deh-NOO-feh','bottom-up: no Trumpf, the 6 is highest'],['wys','Weis','veess · say «Wys»','bonus points for rows and fours in the cards you are dealt'],['stoeck','Stöck','shtuck','König and Ober of Trumpf in one hand: 20 points']];
 const WORDS=[['jass','Jass','yahss','the game, and what you do: jassen'],['schieber','Schieber','SHEE-ber','the kind of Jass you are learning'],['stich','Stich','shtikh','a trick: four cards, one from each player'],['farb-aagaeh','Farb aagäh','farb AH-gah','to follow suit']];
 function ladderHTML(){return '<div class="ladder">'+LADDER.map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function valuesHTML(){return '<div class="vals">'+RANKS.slice(0,5).map(r=>'<div><span>'+r.name+'</span><b>'+r.pts+'</b></div>').join('')+'<div><span>9, 8, 7, 6</span><b>0</b></div></div>'}
 function trumpLadderHTML(){return '<div class="ladder">'+['Puur','Nell','Ass','König','Ober','Banner','8','7','6'].map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
+function modeLadderHTML(m){return '<div class="ladder">'+orderM(m).map(r=>'<span>'+rankOf(r).name+'</span>').join('<span class="sep">beats</span>')+'</div>'}
+function modeValuesHTML(m){return '<div class="vals">'+orderM(m).filter(r=>pointsM({r},m)).map(r=>'<div><span>'+rankOf(r).name+'</span><b>'+pointsM({r},m)+'</b></div>').join('')+'<div><span>'+orderM(m).filter(r=>!pointsM({r},m)).map(r=>rankOf(r).name).join(', ')+'</span><b>0</b></div></div>'}
+function weisTableHTML(){return '<div class="wt">'+[['3 in a row',20],['4 of a kind',100],['4 in a row',50],['4 nines',150],['5 in a row',100],['4 Under',200]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">Four of a kind: Asses, Könige, Ober or Banner. Four 8, 7 or 6 count nothing.</span>'}
+const modeChip=m=>'<div class="trumpchip"><span>No Trumpf</span><b>'+MODE_NAME[m]+'</b><em>'+(m==='unde'?'6 is highest':'Ass is highest')+'</em></div>';
 function trumpValuesHTML(){return '<div class="vals">'+[['Puur',20],['Nell',14],['Ass',11],['Banner',10],['König',4],['Ober',3],['8, 7, 6',0]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">In the other suits: Under 2, and the 9 nothing.</span>'}
 function trumpCardsHTML(suit){
   return '<div class="deckrow">'+TRUMP_ORDER.map(r=>'<div class="cardbox"><span class="card">'+cardSVG({s:suit,r})+'</span><span class="cap">'+tShort({s:suit,r},suit)+'</span></div>').join('')+'</div>';
@@ -1200,6 +1389,8 @@ function introVisual(kind){
   if(kind==='values')return valuesHTML();
   if(kind==='trumpcards')return '<p class="small dim">With Schilte as Trumpf, from strongest to weakest:</p>'+trumpCardsHTML('schilte');
   if(kind==='trumpvalues')return trumpValuesHTML();
+  if(kind==='oben'||kind==='unde')return modeChip(kind)+'<p class="small dim" style="margin:8px 0 4px">From strongest to weakest:</p>'+modeLadderHTML(kind)+'<p class="small dim" style="margin:8px 0 4px">The points:</p>'+modeValuesHTML(kind);
+  if(kind==='weis')return weisTableHTML()+'<p class="small dim" style="margin-top:8px">The order for rows: Ass, König, Ober, Under, Banner, 9, 8, 7, 6.</p>';
   if(kind==='bock')return '<div class="deckrow">'+[['A','played'],['K','<span class="tag win">Bock</span>'],['O',''],['U','']].map(x=>'<div class="cardbox"><span class="card" style="width:64px'+(x[0]==='A'?';opacity:.4':'')+'">'+cardSVG({s:'rose',r:x[0]})+'</span><span class="cap">'+x[1]+'</span></div>').join('')+'</div><p class="small dim">The Ass of Rose has been played. Now the König is the highest Rose left.</p>';
   if(kind.indexOf('levels-')===0){
     const k=kind.slice(7),on=x=>k===x||k==='both'?' class="on"':'';
@@ -1230,7 +1421,8 @@ function renderHome(){
       +'<span class="state">'+(stagePassed(si)?'Done':(open?'Open':'Locked'))+'</span></div><p>'+st.blurb+'</p><div class="lessons">'+lessons+'</div></section>';
   });
   const all=STAGES.every((_,i)=>stagePassed(i)),ch1=stagePassed(2);
-  const hello=all?'Chapter 3 is done. You count the Trumpf, you know your Bock and you feed your partner. The lions of Winterthur are getting nervous. Chapter 4 will bring the full game.'
+  const hello=all?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. One stage is still to come, and then you can keep the slate yourself.'
+    :stagePassed(8)?'Chapter 3 is done. You count the Trumpf, you know your Bock and you feed your partner. The lions of Winterthur are getting nervous. Now the full game: two more ways to play, and points before the first card.'
     :stagePassed(6)?'You have played a whole round, and you can sit down at a real table now. Chapter 3 shows how good players think. It is mostly counting.'
     :stagePassed(4)?'You know what you may play. Now you learn to speak first: Ansagen or Schieben. After that we play a whole round. I am already setting the table.'
     :ch1?'Chapter 1 is yours. Now comes Trumpf, and half of what you just learned gets turned on its head. Do not worry. It happens to everyone.'
@@ -1239,7 +1431,7 @@ function renderHome(){
     +'<p class="chalk">Grüezi mitenand! Chömed, mer jassed.'+spk('gruezi')+'<span class="tr">Hello everyone! Come on, let’s play. · I’m Vreni.</span></p>'
     +'<p>'+hello+'</p>'+(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
     +'<div class="path">'+path
-    +'<p class="later"><b>Still to come:</b> Chapter 4 · The full game.</p></div>'
+    +'<p class="later"><b>Still to come:</b> the last stage of Chapter 4, Scoring like a local.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
     +placesHTML()
     +'<div class="slate breaks"><h2>For the breaks</h2><p class="dim small">Two Swiss classics on YouTube. Both are in Swiss German, which is half the fun.</p>'
@@ -1272,6 +1464,10 @@ function renderDeck(){
       +(stageOpen(5)?'<p class="small dim" style="margin-top:8px">Before the first card, Vorhand names Trumpf or says Gschobe and pushes the choice to her partner. Rule of thumb: name it with the Puur and three more, with Nell, Ass and three more, with Puur, Nell and Ass, or with Puur, Nell and one more plus two Asses elsewhere. Anything less: push.</p>':'')+'</div>':'')
     +(stageOpen(7)?'<div><h2>Chapter 3 · Playing well</h2><div class="scroll"><table class="sheet-table"><tbody>'+WORDS3.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
       +'<p class="small dim" style="margin-top:8px">Count the Trumpf: nine, minus the ones played, minus your own. When you named Trumpf, it often pays to draw it, usually for two rounds, and to stop once the other team has none. Put points on a trick your partner is sure to win, and nothing on one the other team wins. Throw away small cards from your weakest suit: it tells your partner where you are weak. Lead low from König and Ober to lure the Ass out. All of this is tactic and signal, not rule.</p></div>':'')
+    +(stageOpen(9)?'<div><h2>Chapter 4 · The full game</h2><div class="scroll"><table class="sheet-table"><tbody>'+WORDS4.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
+      +'<p class="small dim" style="margin:10px 0 4px">Obenabe, from strongest to weakest:</p>'+modeLadderHTML('oben')+modeValuesHTML('oben')
+      +'<p class="small dim" style="margin:10px 0 4px">Undenufe, from strongest to weakest:</p>'+modeLadderHTML('unde')+modeValuesHTML('unde')
+      +(stageOpen(10)?'<p class="small dim" style="margin:10px 0 4px">Weis:</p>'+weisTableHTML()+'<p class="small dim" style="margin-top:8px">Only the team with the single highest Weis writes, and it writes everything both partners hold. Stöck are König and Ober of Trumpf: 20 points, and they always count.</p>':'')+'</div>':'')
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';
@@ -1298,14 +1494,15 @@ function renderLesson(){
   }
   const q=L.queue[L.idx],answered=L.phase==='feedback';
   const showAid=L.help===0||(L.help===1&&L.hinted);
-  const labels=showAid&&['stronger','winner','legal','count','tstronger','twinner','tlegal','tcount','bock','mybock','best'].includes(q.type);
+  const labels=showAid&&['stronger','winner','legal','count','tstronger','twinner','tlegal','tcount','bock','mybock','best','mstronger','mwinner','mcount'].includes(q.type);
   const dots=L.queue.slice(0,L.ls.n).map((_,i)=>'<span class="dot'+(L.marks[i]===true?' ok':L.marks[i]===false?' no':'')+(i===Math.min(L.idx,L.ls.n-1)&&L.idx<L.ls.n?' now':'')+'"></span>').join('');
   const cardBtn=(c,i,group)=>{
-    const tappable=(group==='table'&&['pick','stronger','winner','tpick','tstronger','twinner','bock'].includes(q.type))||(group==='hand');
+    const tappable=(group==='table'&&['pick','stronger','winner','tpick','tstronger','twinner','bock','mstronger','mwinner'].includes(q.type))||(group==='hand');
     let cls='card';
     if(group==='table'&&q.cards.length===1&&q.options)cls+=' big';
     if(group==='hand'&&L.sel.includes(i))cls+=' sel';
-    if(showAid&&(q.type==='winner'||q.type==='twinner')&&c.s!==q.led&&c.s!==q.trump&&!answered)cls+=' offsuit';
+    if(showAid&&(q.type==='winner'||q.type==='twinner'||q.type==='mwinner')&&c.s!==q.led&&c.s!==q.trump&&!answered)cls+=' offsuit';
+    if(answered&&q.mark&&group==='table'&&q.mark.includes(i))cls+=' right';
     if(showAid&&q.hand&&group==='hand'&&c.s===q.led&&c.s!==q.trump)cls+=' same';
     if(showAid&&q.trump&&c.s===q.trump)cls+=' tm';
     if(answered){
@@ -1327,13 +1524,16 @@ function renderLesson(){
   let table='<div class="cards">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
   if(q.last)table='<span class="row-label">Last trick of the round</span>'+table;
   if(q.hand)table='<span class="row-label">On the table</span>'+table+'<span class="row-label">Your hand</span><div class="cards hand">'+q.hand.map((c,i)=>cardBtn(c,i,'hand')).join('')+'</div>';
-  if(q.type==='announce'||q.type==='pushed')table='<span class="row-label">Your hand</span><div class="cards hand">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
+  if(['announce','pushed','weisfind','stoeck'].includes(q.type))table='<span class="row-label">Your hand</span><div class="cards hand">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
   if(q.type==='bock')table='<span class="row-label">Already played</span>'+row(q.gone,'gone')+'<span class="row-label">Still out</span>'+table;
   if(q.type==='mybock')table='<span class="row-label">Already played</span>'+row(q.gone,'gone')+handRow();
   if(q.type==='trumpcount')table='<span class="row-label">Trumpf already played</span>'+row(q.gone,'gone')+'<span class="row-label">Trumpf in your hand</span>'+row(q.mine,'hand');
   if(q.type==='best')table=(q.info?'<p class="info">'+q.info+'</p>':'')+'<span class="row-label">On the table</span>'
     +(q.cards.length?'<div class="cards">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>':'<p class="small dim none">Nothing yet. You lead.</p>')+handRow();
+  if(q.type==='weiscmp')table='<span class="row-label">Our Weis</span>'+row(q.mine,'hand')+'<span class="row-label">Their Weis</span>'+row(q.theirs,'hand');
+  if(q.lines)table='<ul class="lines">'+q.lines.map(l=>'<li>'+l+'</li>').join('')+'</ul>';
   if(q.trump)table='<div class="trumpchip"><span>Trumpf</span>'+symSVG(q.trump)+'<b>'+suitOf(q.trump).name+'</b></div>'+table;
+  if(q.mode)table=modeChip(q.mode)+table;
   let options='';
   if(q.options)options='<div class="options">'+q.options.map(o=>{
     let cls='opt';if(answered){if(o.id===q.answer)cls+=' right';else if(o.id===L.chosen)cls+=' wrong'}
@@ -1360,7 +1560,7 @@ function renderLesson(){
     +HELP.map((h,i)=>'<button type="button" data-help="'+i+'" aria-pressed="'+(L.help===i)+'">'+h+'</button>').join('')+'</div></div>';
   app.innerHTML='<div class="lesson-top"><span class="t">Stage '+(L.si+1)+' · '+L.ls.title+(q.first?'':' · second try')+'</span><div class="dots">'+dots+'</div>'
     +'<button class="ghost" type="button" data-go="home" aria-label="Leave lesson">Leave</button></div>'
-    +'<h2 class="prompt">'+q.prompt+'</h2>'+(q.cards.length||q.gone||q.hand?'<div class="table">'+table+'</div>':'')+(q.diagram?'<div class="table">'+seatsSVG(q.diagram)+'</div>':'')+options+aid+fb+helpSeg;
+    +'<h2 class="prompt">'+q.prompt+'</h2>'+(q.cards.length||q.gone||q.hand||q.mine||q.lines?'<div class="table">'+table+'</div>':'')+(q.diagram?'<div class="table">'+seatsSVG(q.diagram)+'</div>':'')+options+aid+fb+helpSeg;
   if(answered){const b=document.getElementById('next-btn');if(b)b.focus({preventScroll:false})}
 }
 function aidHTML(q){
@@ -1372,6 +1572,13 @@ function aidHTML(q){
   if(q.type==='winner')return '<span><b>'+suitOf(q.led).name+'</b> was led. Only '+suitOf(q.led).name+' can win.</span>'+ladderHTML();
   if(q.type==='legal')return '<span><b>'+suitOf(q.led).name+'</b> was led. Hold that suit? Then play it. Hold none? Then anything goes.</span>'+(q.has?'<span class="small dim">The gold bar marks your '+suitOf(q.led).name+' cards.</span>':'');
   if(q.type==='mc'||q.type==='read')return '<span>'+q.hint+'</span>';
+  if(q.type==='mwinner')return '<span>No Trumpf, so nobody can trump. Only <b>'+suitOf(q.led).name+'</b> can win, and '+(q.mode==='unde'?'the lowest':'the highest')+' one does.</span>'+modeLadderHTML(q.mode);
+  if(q.type==='mstronger')return modeLadderHTML(q.mode);
+  if(q.type==='mvalue'||q.type==='mcount')return modeValuesHTML(q.mode);
+  if(q.type==='weisfind')return '<span>Go through your hand suit by suit and look for neighbours: Ass, König, Ober, Under, Banner, 9, 8, 7, 6. Then look for the same card in all four suits.</span>'+weisTableHTML();
+  if(q.type==='weiscmp')return '<span>1. The higher value wins. 2. Same value: a row beats four of a kind. 3. Then the higher top card. 4. Then the Trumpf suit.</span>'+weisTableHTML();
+  if(q.type==='weiswrite')return '<span>Find the single highest Weis at the table. Only that team writes, and it writes everything both partners hold.</span>';
+  if(q.type==='stoeck')return '<span>Stöck are the König and the Ober of the Trumpf suit, both in your hand. Look at the gold tag first: which suit is Trumpf, if any?</span>';
   if(q.type==='bock')return '<span>Cross out what has been played. The first card left in the order is '+(q.trump?'the highest Trumpf':'Bock')+'.</span>'+(q.trump?trumpLadderHTML():ladderHTML());
   if(q.type==='mybock')return '<span>Check your cards one by one: is a higher card of the same suit still out? If not, your card is Bock.</span>'+ladderHTML();
   if(q.type==='trumpcount')return '<span>Every suit has nine cards. Nine, minus the Trumpf that have been played, minus the Trumpf in your hand.</span>';
@@ -1404,6 +1611,9 @@ function answer(ok){
       if(!legal)L.pre='That card is against the rules here. '+explainTLegal(q.hand,q.cards,q.trump)+' ';
     }
   }
+  if(ok&&q.type==='stoeck'&&q.answer==='yes')L.line=['Stöck!','König and Ober of Trumpf.','stoeck-ruf'];
+  if(ok&&q.type==='mwinner'&&Math.random()<.35)L.line=[MODE_NAME[q.mode]+'!',q.mode==='unde'?'Bottom-up.':'Top-down.',q.mode==='unde'?'undenufe':'obenabe'];
+  if(ok&&q.type==='weisfind'&&q.answer&&Math.random()<.5)L.line=['En Wys!','A Weis!','wys'];
   if(ok&&(q.type==='mybock'||(q.type==='bock'&&!q.trump))&&Math.random()<.5)L.line=['Bock!','Nobody can beat it.','bock'];
   if(ok&&q.type==='tpick')L.line=[TRUMP_NAME[q.target]+'!',q.target==='U'?'The boss.':'Second in command.',q.target==='U'?'puur':'nell'];
   if(ok&&q.type==='announce'&&q.answer==='push')L.line=['Gschobe!','Pushed. Your partner has to choose.','gschobe'];

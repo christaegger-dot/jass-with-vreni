@@ -11,8 +11,8 @@ Live: https://jass-with-vreni.netlify.app
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
 - `public/cheatsheets/` holds the eleven printable cheat sheets as PDF, one US Letter page each. Sheet 10 is a glossary of every Jass word in the course.
 - `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
-- `tests/logic-test.js` checks the rules and the question generators, and plays 3000 whole rounds against a second, independent copy of the rules.
-- `tests/browser-test.js` plays through every lesson and several whole rounds in a real browser.
+- `tests/logic-test.js` checks the rules and the question generators, and plays 3000 whole rounds and 700 whole games (every card, Weis, Stöck and slate entry) against a second, independent copy of the rules.
+- `tests/browser-test.js` plays through every lesson, several whole rounds and one whole game in a real browser.
 - `netlify.toml` tells Netlify to publish the `public` folder.
 
 ## Credits
@@ -35,7 +35,10 @@ Chapter 4 (the full game) has three stages: Obenabe and Undenufe, Weis and Stöc
 (single, double, triple, Match, and how a game ends). With that every rule of the game is covered.
 Chapter 5 (at the table) starts with stage 13: counting sure tricks, when to name Obenabe or Undenufe, and the
 first card after a push. These are rules of thumb and conventions, and the app labels them as such.
-The course now has 13 stages and 56 lessons.
+Stage 14 is the whole game: all six games, Weis, Stöck and the slate, with the deal moving on after every
+round, played to 1000 (everything single) or to 2500 (with the factors). Weis and Stöck are announced
+automatically, a round is always played to the end, and an unfinished game is saved in the browser.
+The course now has 14 stages and 57 lessons.
 Progress is stored in the learner's browser only.
 
 ## Running it locally

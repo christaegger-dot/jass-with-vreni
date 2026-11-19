@@ -1,7 +1,7 @@
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const logic=html.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
-const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS,FACTOR,qFactor,qWrite,qMatchYN,MC_MATCH,MC_END,sureTricks,qSure,qGame,qLeadT,qLeadNoT,qLeadM};')();
+const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS,FACTOR,qFactor,qWrite,qMatchYN,MC_MATCH,MC_END,sureTricks,qSure,qGame,qLeadT,qLeadNoT,qLeadM,newGame,gameDeal,gameHands,botCall,botCallPushed,gameSetGame,gamePlay,gameScore,gameApply,gameFirst,weisOutcome,weisBetter};')();
 let fail=0,count=0;const ok=(c,m)=>{count++;if(!c){fail++;console.log('FAIL',m)}};
 const C=(s,r)=>({s,r});
 // fixed cases
@@ -180,8 +180,8 @@ console.log('rounds: team of seat 0 took more tricks in '+ownWins+' of 3000, Mat
 // the first prepared deal is winnable: with Schelle as Trumpf and sensible play your team takes the majority of the points
 {let good=0;for(let k=0;k<200;k++){const st=api.newRound(api.dealRound(0),0);st.trump='schelle';for(let n=0;n<9;n++){for(let j=0;j<4;j++)api.roundPlay(st,st.turn,api.botMove(st,st.turn));api.roundCloseTrick(st)}if(st.score[0]>st.score[1])good++}
  console.log('first deal, Schelle named, played by the app itself: your team is ahead in '+good+' of 200');ok(good>=100,'first deal is a fair start ('+good+' of 200)')}
-for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
-ok(api.STAGES.length===13&&api.STAGES[11].lessons.length===5&&api.STAGES[11].ch===4&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'the first twelve stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 has stages 10 to 12');
+for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round||ls.game)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
+ok(api.STAGES.length===14&&api.STAGES[11].lessons.length===5&&api.STAGES[11].ch===4&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'the first twelve stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 has stages 10 to 12');
 
 // ------------------------------------------------------------ chapter 3: Bock, counting, team play
 // Bock, written out independently: every stronger card of the same suit has been played.
@@ -377,5 +377,105 @@ for(let k=0;k<3000;k++){
   }
 }
 ok(Object.keys(seenSure).length>=8&&Object.keys(seenLead).length===9,'chapter 5: every kind of situation occurs '+J([Object.keys(seenSure).length,Object.keys(seenLead).length]));
-ok(api.STAGES.length===13&&api.STAGES[12].ch===5&&api.STAGES[12].lessons.length===6&&api.STAGES[12].lessons[5].check===true&&api.STAGES[12].lessons.every(l=>!l.round),'thirteen stages: chapter 5 holds stage 13 with five lessons and a check');
+ok(api.STAGES.length===14&&api.STAGES[12].ch===5&&api.STAGES[12].lessons.length===6&&api.STAGES[12].lessons[5].check===true&&api.STAGES[12].lessons.every(l=>!l.round),'chapter 5 holds stage 13 with five lessons and a check');
+// ---- The whole game: every round of many games is replayed here against rules written a second time.
+const GAME_IDS=['eichle','rose','schelle','schilte','oben','unde'];
+const refCall=h=>{const a=refSure(h,'oben'),b=refSure(h,'unde');if(a>=5&&a>=b)return 'oben';if(b>=5)return 'unde';let best=null;for(const s of SU)if(refPattern(h,s)&&(!best||len(h,s)>len(h,best)))best=s;return best};
+const refLongest=h=>{const sc=s=>len(h,s)*12+(inHand(h,s,'U')?18:0)+(inHand(h,s,'9')?10:0)+(inHand(h,s,'A')?6:0);let best=SU[0];for(const s of SU)if(sc(s)>sc(best))best=s;return best};
+function refWeisOutcome(hands,game,vorhand){          // who writes how much Weis
+  const unde=game==='unde',trump=REF[game]?null:game;
+  const of=seat=>refWeis(hands[seat]).map(w=>{const suits=new Set(w.keys.map(k=>k.slice(0,-1))),ranks=w.keys.map(k=>TOPDOWN.indexOf(k.slice(-1)));return {seat,pts:w.pts,n:w.keys.length,top:Math.min(...ranks),suit:suits.size===1?w.keys[0].slice(0,-1):null}});
+  const better=(a,b)=>{
+    if(a.pts!==b.pts)return a.pts>b.pts;
+    if(a.n!==b.n)return a.n>b.n;                                   // the Weis with more cards: a row of five beats four of a kind
+    if(a.top!==b.top)return unde?a.top>b.top:a.top<b.top;          // the higher top card, in Undenufe the lower one
+    return !!trump&&a.suit===trump&&b.suit!==trump;                // then the Trumpf suit; otherwise whoever plays first keeps it
+  };
+  let best=null;const all=[0,1,2,3].map(of);
+  for(let k=0;k<4;k++)for(const w of all[(vorhand+k)%4])if(!best||better(w,best))best=w;
+  if(!best)return {team:-1,points:0};
+  const team=best.seat%2;return {team,points:all[team].concat(all[team+2]).reduce((n,w)=>n+w.pts,0)};
+}
+function refFirst(target,before,stoeck,weis,f,tricks){   // both teams passed the total: Stöck, then Weis, then trick by trick
+  const tot=before.slice(),one=()=>{const a=tot[0]>=target,b=tot[1]>=target;return a&&!b?0:b&&!a?1:-1};
+  tot[0]+=stoeck[0]*f;tot[1]+=stoeck[1]*f;if(one()>=0)return one();
+  tot[0]+=weis[0]*f;tot[1]+=weis[1]*f;if(one()>=0)return one();
+  for(const x of tricks){tot[x[0]]+=x[1]*f;if(one()>=0)return one()}
+  return tot[0]>=tot[1]?0:1;
+}
+{
+  const h0=api.gameHands(0,true),h2=api.gameHands(2,true);
+  ok(h0.every(h=>h.length===9)&&uniq([].concat(...h0))&&api.botCall(h0[0])==='oben'&&refSure(h0[0],'oben')===6,'first game, first deal: six sure tricks from the top, a hand for Obenabe');
+  ok(h2.every(h=>h.length===9)&&uniq([].concat(...h2))&&api.botCall(h2[2])===null&&refCall(h2[2])===null&&api.botCallPushed(h2[0])==='schilte'&&refWeis(h2[0]).map(w=>w.pts).join()==='20,20'&&inHand(h2[0],'schilte','K')&&inHand(h2[0],'schilte','O'),'first game, third deal: your partner pushes, you hold Schilte with Stöck and two small Weis');
+  ok(uniq([].concat(...api.gameHands(1,true)))&&uniq([].concat(...api.gameHands(0,false))),'the other deals are 36 different cards');
+  ok(api.newGame(1000).factors===false&&api.newGame(2500).factors===true,'to 1000 everything counts single, to 2500 the factors apply');
+  const seq=(s,top,n)=>({kind:'seq',suit:s,top,len:n,pts:{3:20,4:50,5:100}[n]}),four=r=>({kind:'four',top:r,len:4,pts:r==='U'?200:r==='9'?150:100});
+  ok(api.weisBetter(seq('rose','K',3),seq('eichle','O',3),'schelle',null)&&!api.weisBetter(seq('rose','K',3),seq('eichle','O',3),null,'unde')&&api.weisBetter(seq('eichle','O',3),seq('rose','K',3),null,'unde'),'equal rows: the higher top card wins, in Undenufe the lower one');
+  ok(api.weisBetter(seq('schelle','K',3),seq('rose','K',3),'schelle',null)&&!api.weisBetter(seq('rose','K',3),seq('eichle','K',3),'schelle',null)&&!api.weisBetter(seq('eichle','K',3),seq('rose','K',3),'schelle',null),'same top card: the Trumpf suit wins, otherwise nobody is higher');
+  ok(api.weisBetter(seq('rose','B',5),four('A'),'schelle',null)&&api.weisBetter(four('6'),four('A'),null,'unde')&&api.weisBetter(four('A'),four('6'),null,'oben'),'five in a row beat four of a kind; four sixes beat four Asses in Undenufe only');
+  const tie=[H('r:A r:K r:O e:9 e:7 s:8 s:6 t:B t:7'),H('e:A e:K e:O r:9 r:7 s:7 t:6 t:9 s:B'),H('s:A s:U s:9 t:A t:8 r:B r:8 e:B e:8'),H('t:K t:O t:U r:U r:6 e:U e:6 s:K s:O')];
+  ok(api.weisOutcome(tie,'schelle',0).team===0&&api.weisOutcome(tie,'schelle',1).team===1&&api.weisOutcome(tie,'schelle',0).points===20&&refWeisOutcome(tie,'schelle',0).team===0&&refWeisOutcome(tie,'schelle',1).team===1,'two equal Weis: whoever plays first writes');
+  const mk=(st0,st1,w0,w1)=>({factor:1,rows:[{stoeck:st0,weis:w0},{stoeck:st1,weis:w1}]});
+  ok(api.gameFirst(1000,[990,990],mk(0,20,20,0),[{winner:0,points:30}])===1,'both need 20: Stöck count before Weis');
+  ok(api.gameFirst(1000,[990,990],mk(0,0,20,0),[{winner:1,points:30}])===0,'both need 20: Weis count before tricks');
+  ok(api.gameFirst(1000,[990,985],mk(0,0,0,0),[{winner:1,points:10},{winner:0,points:12},{winner:1,points:9}])===0&&api.gameFirst(1000,[990,985],mk(0,0,0,0),[{winner:1,points:16},{winner:0,points:12}])===1,'both pass the total with tricks: the team that gets there first wins');
+}
+const seenGame={},gameStats={rounds:0,both:0,match:0,pushed:0,weis:0,stoeck:0,max:0};
+for(let k=0;k<700;k++){
+  const target=k%2?2500:1000,gm=api.newGame(target,k<2),totals=[0,0];let bad=false;
+  ok(gm.total.join()==='0,0'&&gm.round===0&&gm.over===false,'a new game starts at nil');
+  for(let rd=0;rd<60&&!gm.over&&!bad;rd++){
+    const st=api.gameDeal(gm),v=st.vorhand,all=[].concat(...st.hands);
+    ok(v===rd%4&&st.dealer===(v+3)%4&&st.leader===v&&st.turn===v&&all.length===36&&uniq(all),'game: Vorhand moves on by one seat every round, to the right of the dealer');
+    let call,namer=v,pushed=false;
+    if(k%5===0){call=GAME_IDS[rnd(6)]}                                // every fifth game: any game is named, like a bold learner
+    else{call=api.botCall(st.hands[v]);ok(call===refCall(st.hands[v]),'game: what Vorhand says follows the rule of thumb');
+      if(!call){pushed=true;namer=(v+2)%4;call=api.botCallPushed(st.hands[namer]);ok(call===(refCall(st.hands[namer])||refLongest(st.hands[namer])),'game: after a push the partner has to name something')}}
+    const start=st.hands.map(h=>h.slice());
+    api.gameSetGame(st,call,namer,pushed);
+    const mode=REF[call]?call:null,trump=mode?null:call,f=gm.factors?REF_F[call]:1;
+    const stoeckSeat=trump?[0,1,2,3].find(s=>inHand(start[s],trump,'K')&&inHand(start[s],trump,'O')):undefined;
+    const rw=refWeisOutcome(start,call,v);
+    ok(st.weis.team===rw.team&&st.weis.points===rw.points&&st.leader===v&&!!st.mode===!!mode&&(st.trump||null)===trump,'game: who writes the Weis, and how much '+J([call,v,st.weis.team,st.weis.points,rw]));
+    const tricks=[],pts=[0,0],won=[0,0];let stoeckTeam=-1,calls=0;
+    for(let n=0;n<9&&!bad;n++){
+      const lead=st.leader;
+      for(let j=0;j<4;j++){
+        const seat=st.turn,hand=st.hands[seat];
+        const legal=!st.trick.length?hand.map((_,i)=>i):mode?(hand.some(c=>c.s===st.trick[0].s)?hand.map((c,i)=>c.s===st.trick[0].s?i:-1).filter(i=>i>=0):hand.map((_,i)=>i)):refLegal(hand,st.trick,trump);
+        const idx=seat===0&&k%3===0?legal[rnd(legal.length)]:api.botMove(st,seat);
+        if(!legal.includes(idx)){ok(false,'game: illegal card '+J({seat,hand,trick:st.trick,call,idx}));bad=true;break}
+        const c=hand[idx],second=seat===stoeckSeat&&c.s===trump&&'KO'.includes(c.r)&&!hand.some((x,i)=>i!==idx&&x.s===trump&&'KO'.includes(x.r));
+        const r=api.gamePlay(st,seat,idx);
+        ok(r.full===(j===3)&&r.stoeck===second,'game: the trick is full after four cards, and Stöck is called with the second of the two');
+        if(second){stoeckTeam=seat%2;calls++}
+      }
+      if(bad)break;
+      const cards=st.trick.slice();
+      let w,p;
+      if(mode){const o=REF[mode].order;w=0;cards.forEach((c,i)=>{if(c.s===cards[0].s&&o.indexOf(c.r)<o.indexOf(cards[w].r))w=i});p=cards.reduce((a,c)=>a+REF[mode].pts[c.r],0)}
+      else{w=refWinner(cards,trump);p=cards.reduce((a,c)=>a+refPts(c,trump),0)}
+      const seat=(lead+w)%4;if(n===8)p+=5;
+      const t=api.roundCloseTrick(st);
+      ok(t.winner===seat&&t.points===p,'game: winner and points of a trick in '+call);
+      tricks.push([seat%2,p]);pts[seat%2]+=p;won[seat%2]++;
+    }
+    if(bad)break;
+    ok(pts[0]+pts[1]===157&&st.stoeck===stoeckTeam&&calls===(stoeckSeat===undefined?0:1),'game: 157 points in the tricks, and Stöck goes to the hand that held König and Ober of Trumpf');
+    const match=won[0]===9?0:won[1]===9?1:-1,before=gm.total.slice();
+    const want=[0,1].map(tm=>(pts[tm]+(match===tm?100:0)+(rw.team===tm?rw.points:0)+(stoeckTeam===tm?20:0))*f);
+    const res=api.gameApply(gm,st);
+    totals[0]+=want[0];totals[1]+=want[1];
+    ok(res.factor===f&&res.rows[0].written===want[0]&&res.rows[1].written===want[1]&&gm.total[0]===totals[0]&&gm.total[1]===totals[1]&&res.before.join()===before.join()&&res.match===match&&gm.round===rd+1&&gm.log.length===rd+1,'game: what goes on the slate '+J([call,f,want,res.rows.map(x=>x.written)]));
+    const reached=[0,1].filter(tm=>totals[tm]>=target);
+    const winner=reached.length===0?-1:reached.length===1?reached[0]:refFirst(target,before,[stoeckTeam===0?20:0,stoeckTeam===1?20:0],[rw.team===0?rw.points:0,rw.team===1?rw.points:0],f,tricks);
+    ok(gm.over===(reached.length>0)&&gm.winner===winner&&res.both===(reached.length===2),'game: over exactly when a team has reached the total, and the right team wins '+J([totals,target,gm.winner,winner]));
+    seenGame[call]=1;gameStats.rounds++;if(reached.length===2)gameStats.both++;if(match>=0)gameStats.match++;if(pushed)gameStats.pushed++;if(rw.team>=0)gameStats.weis++;if(stoeckTeam>=0)gameStats.stoeck++;
+  }
+  if(bad)break;
+  ok(gm.over&&gm.round<=40,'game: every game comes to an end ('+gm.round+' rounds)');gameStats.max=Math.max(gameStats.max,gm.round);
+}
+ok(Object.keys(seenGame).length===6&&gameStats.both>0&&gameStats.match>0&&gameStats.pushed>0&&gameStats.weis>0&&gameStats.stoeck>0,'whole games: all six games, pushes, Weis, Stöck, a Match and a photo finish occur '+J(gameStats));
+console.log('whole games: '+J(gameStats));
+ok(api.STAGES.length===14&&api.STAGES[13].ch===5&&api.STAGES[13].lessons.length===1&&api.STAGES[13].lessons[0].game===true,'fourteen stages: the whole game is stage 14');
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

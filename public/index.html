@@ -130,6 +130,15 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .rscore b{color:var(--gold);font-size:24px}
 .rscore .side{display:flex;align-items:center;gap:7px}
 .rscore .side.r{text-align:right}
+.gslate{display:flex;justify-content:space-between;gap:8px;font-size:14px;color:var(--chalk-dim);padding:0 4px;font-variant-numeric:tabular-nums}
+.gslate b{color:var(--gold)}
+.gcount th.n{text-align:right}
+.gcount th{letter-spacing:.2px}
+.gfactor{position:absolute;right:10px;top:10px;background:var(--gold);color:var(--ink);border-radius:10px;padding:3px 9px 4px;text-align:center;line-height:1.1}
+.gfactor b{display:block;font-size:17px}
+.gfactor span{font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:700}
+.gcount tr.sum td{border-top:2px solid var(--gold);font-weight:700}
+.gcount tr.write td{font-family:var(--font-chalk);font-size:22px;color:var(--gold);border-bottom:0}
 .rscore i{display:block;font-style:normal;font-family:var(--font-body);font-size:11px;letter-spacing:.4px;color:var(--chalk-dim)}
 .badge{width:24px;height:24px;flex:0 0 auto}
 .tag.win{background:var(--good)}
@@ -686,8 +695,8 @@ function dealRound(n){            // n: rounds the learner has finished. The fir
 function newRound(hands,leader){return {hands:hands.map(h=>h.slice()),trump:null,leader,turn:leader,trick:[],done:[],score:[0,0],won:[0,0]}}
 function roundPlay(st,seat,idx){st.trick.push(st.hands[seat].splice(idx,1)[0]);st.turn=(seat+1)%4;return st.trick.length===4}
 function roundCloseTrick(st){
-  const seat=(st.leader+trickWinnerT(st.trick,st.trump))%4,last=st.done.length===8;
-  const points=st.trick.reduce((n,c)=>n+pointsT(c,st.trump),0)+(last?5:0);
+  const seat=(st.leader+stWinner(st))%4,last=st.done.length===8;
+  const points=st.trick.reduce((n,c)=>n+stPoints(c,st),0)+(last?5:0);
   st.score[seat%2]+=points;st.won[seat%2]++;
   const t={leader:st.leader,cards:st.trick,winner:seat,points};
   st.done.push(t);st.leader=seat;st.turn=seat;st.trick=[];
@@ -713,8 +722,8 @@ function botCard(hand,trick,t,partnerWinning){
   return legal.slice().sort((a,b)=>pointsT(hand[a],t)-pointsT(hand[b],t)||pw(a)-pw(b))[0];
 }
 function botMove(st,seat){
-  const w=st.trick.length?trickWinnerT(st.trick,st.trump):-1;
-  return botCard(st.hands[seat],st.trick,st.trump,w>=0&&(st.leader+w)%4===(seat+2)%4);
+  const w=st.trick.length?stWinner(st):-1,partner=w>=0&&(st.leader+w)%4===(seat+2)%4;
+  return st.mode?botCardM(st.hands[seat],st.trick,st.mode,partner):botCard(st.hands[seat],st.trick,st.trump,partner);
 }
 
 /* ---------- Chapter 3: Bock, counting and team play ---------- */
@@ -1169,6 +1178,109 @@ function qLeadM(v,m){                       // 'low' 'top': your partner named O
     line:v==='top'?null:['Aazieh!','Lead your strong suit.','aazieh']});
 }
 
+/* ---------- Chapter 5: the whole game ---------- */
+// The same three questions for every game, with a Trumpf suit (st.trump) or without one (st.mode).
+const stWinner=st=>st.mode?trickWinnerM(st.trick,st.mode):trickWinnerT(st.trick,st.trump);
+const stPoints=(c,st)=>st.mode?pointsM(c,st.mode):pointsT(c,st.trump);
+const stLegal=(st,seat)=>{const h=st.hands[seat];return !st.trick.length?h.map((_,i)=>i):st.mode?legalCards(h,st.trick[0]):legalT(h,st.trick,st.trump)};
+// Without Trumpf the computer players stay just as plain: take the trick cheaply, unless the partner already has it.
+function botCardM(hand,trick,m,partnerWinning){
+  const all=hand.map((_,i)=>i),o=orderM(m),pw=i=>9-o.indexOf(hand[i].r);
+  if(!trick.length){
+    const top=all.find(i=>hand[i].r===o[0]);
+    if(top!==undefined)return top;
+    const longest=hand.map(c=>c.s).reduce((a,b)=>cnt(hand,b)>cnt(hand,a)?b:a);
+    return all.filter(i=>hand[i].s===longest).sort((a,b)=>pw(a)-pw(b))[0];
+  }
+  const legal=legalCards(hand,trick[0]),led=trick[0].s,best=Math.max(...trick.filter(c=>c.s===led).map(c=>9-o.indexOf(c.r)));
+  const winners=legal.filter(i=>hand[i].s===led&&pw(i)>best);
+  if(winners.length&&!partnerWinning)return winners.sort((a,b)=>pw(a)-pw(b))[0];
+  return legal.slice().sort((a,b)=>pointsM(hand[a],m)-pointsM(hand[b],m)||pw(a)-pw(b))[0];
+}
+// A game is played to a total. To 1000 everything counts single; to 2500 the factors apply.
+function newGame(target,first){return {target,factors:target>1000,total:[0,0],round:0,log:[],over:false,winner:-1,first:!!first}}
+function dealFixed(mine,partner){
+  const taken=new Set(),fix=l=>l?l.map(x=>{taken.add(x[0]+x[1]);return {s:x[0],r:x[1]}}):null;
+  const h0=fix(mine),h2=fix(partner),rest=shuffle(deck()).filter(c=>!taken.has(c.s+c.r));
+  return [h0||rest.splice(0,9),rest.splice(0,9),h2||rest.splice(0,9),rest.splice(0,9)].map(sortHand);
+}
+// The very first game starts gently: a hand for Obenabe when you are Vorhand, and a hand to name when your partner pushes.
+function gameHands(round,first){
+  if(first&&round===0)return dealFixed([['rose','A'],['rose','K'],['rose','O'],['schelle','A'],['schelle','K'],['eichle','A'],['eichle','9'],['schilte','8'],['schilte','7']],null);
+  if(first&&round===2)return dealFixed([['schilte','U'],['schilte','K'],['schilte','O'],['schilte','8'],['schilte','7'],['rose','A'],['rose','K'],['rose','O'],['eichle','6']],
+    [['eichle','K'],['eichle','9'],['eichle','7'],['rose','B'],['rose','8'],['schelle','O'],['schelle','7'],['schilte','B'],['schilte','6']]);
+  return dealFixed(null,null);
+}
+// The deal moves on after every round: first you are Vorhand, then the player on your right, your partner, the player on your left.
+function gameDeal(gm,hands){
+  const v=gm.round%4,st=newRound(hands||gameHands(gm.round,gm.first),v);
+  st.vorhand=v;st.dealer=(v+3)%4;st.game=null;st.mode=null;st.namer=-1;st.pushed=false;st.weis=null;st.stoeckSeat=-1;st.stoeck=-1;
+  return st;
+}
+// What a computer player says as Vorhand: a game, or null for a push. After a push there is no way back.
+function botCall(hand){
+  const a=sureTricks(hand,'oben'),b=sureTricks(hand,'unde');
+  if(a>=5&&a>=b)return 'oben';
+  if(b>=5)return 'unde';
+  const adv=announceAdvice(hand);return adv?adv.suit:null;
+}
+function botCallPushed(hand){return botCall(hand)||bestSuit(hand)}
+function weisBetter(a,b,t,m){          // is a strictly the higher Weis?
+  if(m==='unde'&&a.pts===b.pts&&a.kind===b.kind&&a.top!==b.top)return PLAIN.indexOf(a.top)>PLAIN.indexOf(b.top);   // in Undenufe the lower top card wins
+  return weisCompare(a,b,t)===1;
+}
+// Only the team with the single highest Weis writes, and it writes everything both partners hold. Equal Weis: whoever plays first.
+function weisOutcome(hands,game,vorhand){
+  const m=MODE_NAME[game]?game:null,t=m?null:game,list=hands.map((h,seat)=>findWeis(h).map(w=>Object.assign({seat},w)));
+  let best=null;
+  for(let k=0;k<4;k++)for(const w of list[(vorhand+k)%4])if(!best||weisBetter(w,best,t,m))best=w;
+  if(!best)return {team:-1,points:0,list,best:null};
+  const team=best.seat%2;
+  return {team,points:list[team].concat(list[team+2]).reduce((n,w)=>n+w.pts,0),list,best};
+}
+function gameSetGame(st,game,namer,pushed){
+  st.game=game;st.namer=namer;st.pushed=!!pushed;st.mode=MODE_NAME[game]?game:null;st.trump=st.mode?null:game;
+  st.weis=weisOutcome(st.hands,game,st.vorhand);
+  st.stoeckSeat=st.trump?[0,1,2,3].findIndex(s=>holds(st.hands[s],st.trump,'K')&&holds(st.hands[s],st.trump,'O')):-1;
+  st.stoeck=-1;st.leader=st.turn=st.vorhand;
+}
+// Plays a card. Says whether the trick is full, and whether this was the second card of Stöck.
+function gamePlay(st,seat,idx){
+  const c=st.hands[seat][idx],full=roundPlay(st,seat,idx);
+  const stoeck=seat===st.stoeckSeat&&st.stoeck<0&&c.s===st.trump&&'KO'.includes(c.r)&&!holds(st.hands[seat],st.trump,c.r==='K'?'O':'K');
+  if(stoeck)st.stoeck=seat%2;
+  return {full,stoeck};
+}
+// What each team writes for the round: tricks, Match, Weis and Stöck, all of it times the factor.
+function gameScore(st,factors){
+  const f=factors?FACTOR[st.game]:1,match=st.won[0]===9?0:st.won[1]===9?1:-1;
+  const rows=[0,1].map(tm=>{
+    const tricks=st.score[tm],mt=match===tm?100:0,weis=st.weis.team===tm?st.weis.points:0,stoeck=st.stoeck===tm?20:0,sum=tricks+mt+weis+stoeck;
+    return {tricks,match:mt,weis,stoeck,sum,written:sum*f};
+  });
+  return {factor:f,match,rows};
+}
+// Both teams passed the total in the same round: Stöck count first, then Weis, then the tricks in the order they were won.
+function gameFirst(target,before,res,done){
+  const run=before.slice(),f=res.factor,hit=()=>{const r=[0,1].filter(tm=>run[tm]>=target);return r.length===1?r[0]:-1};
+  let w;
+  [0,1].forEach(tm=>{run[tm]+=res.rows[tm].stoeck*f});if((w=hit())>=0)return w;
+  [0,1].forEach(tm=>{run[tm]+=res.rows[tm].weis*f});if((w=hit())>=0)return w;
+  for(const t of done){run[t.winner%2]+=t.points*f;if((w=hit())>=0)return w}
+  return run[0]>=run[1]?0:1;
+}
+// Writes the round on the slate. The game is over when a team has reached the total at the end of a round.
+function gameApply(gm,st){
+  const res=gameScore(st,gm.factors),before=gm.total.slice();
+  gm.total=[before[0]+res.rows[0].written,before[1]+res.rows[1].written];
+  const reached=[0,1].filter(tm=>gm.total[tm]>=gm.target);
+  if(reached.length){gm.over=true;gm.winner=reached.length===1?reached[0]:gameFirst(gm.target,before,res,st.done)}
+  res.before=before;res.after=gm.total.slice();res.both=reached.length===2;
+  gm.log.push({round:gm.round,game:st.game,vorhand:st.vorhand,pushed:st.pushed,written:[res.rows[0].written,res.rows[1].written]});
+  gm.round++;
+  return res;
+}
+
 const STAGES=[
   {ch:1,title:'Meet the cards',blurb:'Four suits, nine cards each. None of it looks like a poker deck.',lessons:[
     {title:'The four suits',help:0,n:6,intro:'suits',
@@ -1362,6 +1474,10 @@ const STAGES=[
     {title:'Check: naming and leading',help:2,n:10,check:true,
       text:'Ten situations, no help. Get eight right, and you can open a round like a local.',
       gen:i=>[()=>qSure('oben'),()=>qGame('unde'),()=>qLeadT('best'),()=>qLeadNoT('puur1'),()=>qLeadM(pick(['low','top'])),()=>qSure('unde'),()=>qGame(pick(['trump','push'])),()=>qLeadT(pick(['puur2','ass3'])),()=>qLeadNoT('none'),()=>qGame('oben')][i%10]()}
+  ]},
+  {ch:5,title:'The whole game',blurb:'Six games, Weis, Stöck and the slate. Everybody is Vorhand in turn.',lessons:[
+    {title:'Play a game',game:true,help:0,n:1,
+      text:'Now everything comes together. The deal moves on after every round, so each of the four is Vorhand in turn. Vorhand names the game or pushes: a Trumpf suit, Obenabe or Undenufe. A Weis is announced in the first trick, Stöck when the second card is played, and after nine tricks the round goes on the slate. You play for Idaho again. The game is saved after every round, so you can stop and come back.'}
   ]}
 ];
 const PASS=.8;
@@ -1538,6 +1654,7 @@ const OPEN_ALL=location.hash==='#open-all';
 const stageOpen=si=>OPEN_ALL||si===0||stagePassed(si-1);
 let L=null;          // the running lesson
 let R=null;          // the running round
+let G=null;          // the running game
 let BOT_DELAY=650;   // how long the others think, in milliseconds
 const app=document.getElementById('app');
 let toastTimer=null;
@@ -1641,7 +1758,7 @@ function introVisual(kind){
 
 /* ---------- home ---------- */
 function renderHome(){
-  L=null;R=null;
+  L=null;R=null;G=null;
   let next=null,path='',ch=0;
   STAGES.forEach((st,si)=>{
     if(st.ch!==ch){ch=st.ch;path+='<h2 class="prompt">'+CHAPTERS[ch]+'</h2>'}
@@ -1651,14 +1768,15 @@ function renderHome(){
       let isNext=false;if(open&&!done&&!next){next=[si,li];isNext=true}
       return '<button type="button" class="lesson-btn'+(done?' done':'')+(isNext?' next':'')+'" data-stage="'+si+'" data-lesson="'+li+'"'+(open?'':' disabled')+'>'
         +'<span class="tick">'+(done?'&#10003;':'')+'</span><span>'+ls.title+'</span>'
-        +'<span class="lvl">'+(ls.round?(S.rounds?S.rounds+(S.rounds===1?' round played':' rounds played'):'Nine tricks'):(best!==undefined?Math.round(best*100)+'% · ':'')+HELP[ls.help])+'</span></button>';
+        +'<span class="lvl">'+(ls.game?(S.fullRounds?S.fullRounds+(S.fullRounds===1?' round played':' rounds played'):'Six games, one slate'):ls.round?(S.rounds?S.rounds+(S.rounds===1?' round played':' rounds played'):'Nine tricks'):(best!==undefined?Math.round(best*100)+'% · ':'')+HELP[ls.help])+'</span></button>';
     }).join('');
     path+='<section class="stage'+(open?'':' locked')+'"><div class="stage-head"><span class="stage-num">Stage '+(si+1)+'</span><h3>'+st.title+'</h3>'
       +'<span class="state">'+(stagePassed(si)?'Done':(open?'Open':'Locked'))+'</span></div><p>'+st.blurb+'</p><div class="lessons">'+lessons+'</div></section>';
   });
   const all=STAGES.every((_,i)=>stagePassed(i)),ch1=stagePassed(2);
   const hello=all?'You have finished the whole course: cards, Trumpf, tactics, Weis, the slate and the right call. Now find three people and a deck of cards. The lions of Winterthur have been warned.'
-    :stagePassed(11)?'You know every rule of the game, and you can keep the slate. One stage is left: which game to name, and which card to lead when your partner had to choose.'
+    :stagePassed(12)?'You can name the game and open a round. Now play it all: a whole game against the lions of Winterthur, with Weis, Stöck and the slate.'
+    :stagePassed(11)?'You know every rule of the game, and you can keep the slate. Next: which game to name, and which card to lead when your partner had to choose.'
     :stagePassed(10)?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. Next comes the slate: single, double, triple.'
     :stagePassed(8)?'Chapter 3 is done. You count the Trumpf, you know your Bock and you feed your partner. The lions of Winterthur are getting nervous. Now the full game: two more ways to play, and points before the first card.'
     :stagePassed(6)?'You have played a whole round, and you can sit down at a real table now. Chapter 3 shows how good players think. It is mostly counting.'
@@ -1669,7 +1787,7 @@ function renderHome(){
     +'<p class="chalk">Grüezi mitenand! Chömed, mer jassed.'+spk('gruezi')+'<span class="tr">Hello everyone! Come on, let’s play. · I’m Vreni.</span></p>'
     +'<p>'+hello+'</p>'+(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
     +'<div class="path">'+path
-    +'<p class="later"><b>That is the whole course.</b> Come back whenever you like: the round in Stage 7 deals new cards every time.</p></div>'
+    +'<p class="later"><b>That is the whole course.</b> Come back whenever you like: the round in Stage 7 and the game in Stage 14 deal new cards every time.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
     +placesHTML()
     +'<div class="slate breaks"><h2>For the breaks</h2><p class="dim small">Two Swiss classics on YouTube. Both are in Swiss German, which is half the fun.</p>'
@@ -1679,7 +1797,7 @@ function renderHome(){
 
 /* ---------- the cards sheet ---------- */
 function renderDeck(){
-  L=null;R=null;
+  L=null;R=null;G=null;
   app.innerHTML='<div class="slate" style="display:flex;flex-direction:column;gap:14px">'
     +'<div><h1>The cards</h1><p class="dim">Everything you have met so far. Come back whenever you like.</p></div>'
     +'<div class="breaks"><h2>Take it to the table</h2>'+sheetsHTML()+'</div>'
@@ -1717,6 +1835,8 @@ function renderDeck(){
 /* ---------- lesson ---------- */
 function startLesson(si,li){
   const ls=STAGES[si].lessons[li];
+  if(ls.game){startGame(si,li);return}
+  G=null;
   if(ls.round){startRound(si,li);return}
   R=null;
   const queue=[];for(let i=0;i<ls.n;i++){const q=ls.gen(i);q.first=true;queue.push(q)}
@@ -2059,6 +2179,208 @@ function roundClick(t){
   }
 }
 
+/* ---------- the whole game ---------- */
+const SEAT_IS=['You are','The player on your right is','Your partner is','The player on your left is'];
+const SEAT_DOES=['You','The player on your right','Your partner','The player on your left'];
+const SEAT_HOLDS=['You hold','Right holds','Your partner holds','Left holds'];
+const GAME_OPTS_ALL=()=>SUIT_OPTS().concat([{id:'oben',label:'Obenabe',sub:'top-down'},{id:'unde',label:'Undenufe',sub:'bottom-up'}]);
+const gameVoice=g=>MODE_NAME[g]?(g==='unde'?'undenufe':'obenabe'):'trumpf';
+function startGame(si,li){
+  L=null;R=null;
+  G={si,li,gm:null,st:null,phase:'intro',help:0,hinted:false,msg:'',bad:null,mistakes:0,mood:'happy',shown:null,notes:[],res:null,token:Math.random()};
+  renderGame();
+}
+function gameBegin(target){
+  G.gm=target?newGame(target,!S.fullRounds):S.game;
+  gameNextRound();
+}
+// What everybody needs to know before the first card: the factor, who leads, and your own Weis.
+function gameNamedText(){
+  const st=G.st,gm=G.gm,f=gm.factors?FACTOR[st.game]:1,mine=st.weis.list[0];
+  return (gm.factors?' '+gameName(st.game)+' counts '+FACTOR_WORD[f]+'.':'')
+    +' '+(st.vorhand===0?'You are Vorhand, so you play the first card.':SEAT_DOES[st.vorhand]+' plays the first card.')
+    +(mine.length?' You hold a Weis: '+mine.map(w=>weisName(w)).join(' and ')+'. You announce it with your first card.':'');
+}
+function gameNextRound(){
+  const gm=G.gm,st=gameDeal(gm);
+  Object.assign(G,{st,token:Math.random(),shown:null,notes:[],bad:null,mood:'happy',hinted:false,res:null,ask:null,mistakes:0,called:false});
+  const v=st.vorhand;
+  if(v===0){G.phase='bid';G.ask='vorhand'}
+  else{
+    const g=botCall(st.hands[v]);
+    if(g){gameSetGame(st,g,v,false);G.phase='named';G.msg='<b>'+SEAT_IS[v]+' Vorhand</b> and names <b>'+gameName(g)+'</b>.'+gameNamedText()}
+    else if(v===2){G.phase='bid';G.ask='pushed'}
+    else{
+      const p=(v+2)%4,g2=botCallPushed(st.hands[p]);gameSetGame(st,g2,p,true);
+      G.phase='named';G.msg='<b>'+SEAT_IS[v]+' Vorhand</b> and pushes. '+SEAT_DOES[p]+' has to choose and names <b>'+gameName(g2)+'</b>.'+gameNamedText();
+    }
+  }
+  renderGame();
+}
+function gameSay(choice){
+  const st=G.st,mine=st.hands[0];let note;
+  if(G.ask==='vorhand'){
+    const adv=botCall(mine);
+    if(choice==='push'){
+      const g=botCallPushed(st.hands[2]);gameSetGame(st,g,2,true);voice('gschobe');
+      note=(adv?'Vreni would have named '+gameName(adv)+' herself. But pushing is always allowed. ':'Gschobe! These cards are made for pushing. ')+'Your partner names <b>'+gameName(g)+'</b>.';
+    }else{
+      gameSetGame(st,choice,0,false);voice(gameVoice(choice));
+      note=(adv===choice?'Good call. ':adv?'Allowed. Vreni would have named '+gameName(adv)+'. But it is your call. ':'Brave. Vreni would have pushed with these cards. But it is your call. ')+'You name <b>'+gameName(choice)+'</b>.';
+    }
+  }else{
+    const adv=botCallPushed(mine);
+    gameSetGame(st,choice,0,true);voice(gameVoice(choice));
+    note='Your partner pushed, and you name <b>'+gameName(choice)+'</b>. '+(adv===choice?'Vreni would have said the same.':'Vreni would have named '+gameName(adv)+'. But it is your call.');
+  }
+  G.phase='named';G.hinted=false;G.msg=note+gameNamedText();
+  renderGame();
+  const top=document.querySelector('.lesson-top');if(top&&top.scrollIntoView)top.scrollIntoView({block:'start'});
+}
+function gameBots(){
+  const st=G.st,tok=G.token;
+  if(G.phase!=='play')return;
+  if(st.trick.length===4){gameEndTrick();return}
+  if(st.turn===0){G.msg=st.trick.length?'Your turn.':'Your lead. Any card is allowed.';renderGame();return}
+  G.msg='The others are playing.';renderGame();
+  setTimeout(()=>{
+    if(!G||G.token!==tok||G.phase!=='play')return;
+    const seat=st.turn,r=gamePlay(st,seat,botMove(st,seat));sfx('slap');
+    if(r.stoeck)G.notes.push(SEAT_DOES[seat]+' calls «Stöck»: 20 points for '+TEAMS[seat%2].name+'.');
+    gameBots();
+  },BOT_DELAY);
+}
+function gameTap(i){
+  const st=G.st;if(G.phase!=='play'||st.turn!==0||st.trick.length===4)return;
+  if(!stLegal(st,0).includes(i)){
+    const c=st.hands[0][i],led=suitOf(st.trick[0].s).name,under=!st.mode&&c.s===st.trump&&st.trick[0].s!==st.trump&&st.trick.some(x=>x.s===st.trump);
+    G.mistakes++;G.bad=i;G.mood='oops';
+    G.msg='<b>Not allowed.</b> '+(st.mode?led+' was led, and you hold '+led+'. Without a Trumpf suit there is no way round it: you must follow suit.':explainTLegal(st.hands[0],st.trick,st.trump));
+    if(!voice(under?'nid-a-mim-tisch':'nei-nei-nei'))sfx('bad');
+    renderGame();return;
+  }
+  G.bad=null;G.mood='happy';G.hinted=false;sfx('slap');
+  if(gamePlay(st,0,i).stoeck){G.notes.push('You call «Stöck»: 20 points for '+TEAMS[0].name+'.');voice('stoeck-ruf')}
+  gameBots();
+}
+// Who holds which Weis, in the order of play, and which team writes.
+function weisText(st){
+  const w=st.weis,parts=[];
+  for(let k=0;k<4;k++){const seat=(st.vorhand+k)%4;if(w.list[seat].length)parts.push(SEAT_HOLDS[seat]+' '+w.list[seat].map(x=>weisName(x)+' ('+x.pts+')').join(' and '))}
+  if(!parts.length)return 'Nobody has a Weis.';
+  const others=w.list[1-w.team].length+w.list[3-w.team].length;
+  return '<b>Weis.</b> '+parts.join('. ')+'. '+TEAMS[w.team].name+' holds the highest and writes '+w.points+'.'+(others?' The other team writes nothing.':'');
+}
+function gameEndTrick(){
+  const st=G.st,cards=st.trick.slice(),leader=st.leader,t=roundCloseTrick(st);
+  const card=cards[(t.winner-leader+4)%4],last=st.done.length===9,first=st.done.length===1;
+  G.shown={cards,leader,winner:t.winner};G.phase='trickdone';G.mood='happy';
+  G.msg='<b>'+WHO[t.winner]+'</b> with the '+(st.mode?cardName(card):tName(card,st.trump))+'. '+t.points+(t.points===1?' point':' points')+' for '+TEAMS[t.winner%2].name+'.'+(last?' That includes 5 for the last trick.':'')
+    +G.notes.map(n=>'</p><p>'+n).join('')+(first?'</p><p>'+weisText(st):'');
+  G.notes=[];
+  if(first&&st.weis.team===0&&st.weis.list[0].length)voice('wys');
+  else if(t.winner===0&&!G.called){G.called=true;voice('das-isch-en-stich')}
+  renderGame();
+}
+function gameFinish(){
+  const gm=G.gm,res=gameApply(gm,G.st);
+  G.res=res;G.phase='count';
+  S.best[lkey(G.si,G.li)]=1;S.fullRounds=(S.fullRounds||0)+1;
+  if(gm.over){S.game=null;S.games=(S.games||0)+1}else S.game=gm;
+  save();
+  if(res.match===0){voice('heitere-fahne');sfx('bell',2.6)}else if(gm.over)voice(gm.winner===0?'jetzt-chasch-es':'merci');
+  renderGame();
+}
+const gameSlateHTML=gm=>'<div class="gslate"><span>The slate: Idaho <b>'+gm.total[0]+'</b> · Winterthur <b>'+gm.total[1]+'</b></span><span>to '+gm.target+'</span></div>';
+function renderGame(){
+  const gm=G.gm,st=G.st,ls=STAGES[G.si].lessons[G.li];
+  if(G.phase==='intro'){
+    const saved=S.game&&!S.game.over?S.game:null;
+    app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni('happy')+'<div class="bubble"><h2>'+ls.title+'</h2><p>'+ls.text+'</p></div></div>'
+      +(saved?'<div class="actions" style="margin-top:14px"><button class="primary" type="button" data-gact="resume">Go on with your game</button><span class="small dim">Round '+(saved.round+1)+' · Idaho '+saved.total[0]+', Winterthur '+saved.total[1]+' · to '+saved.target+'</span></div>':'')
+      +'<p class="small dim" style="margin:14px 0 6px">'+(saved?'Or start a new game:':'Choose your game:')+'</p>'
+      +'<div class="options"><button type="button" class="opt" data-gnew="1000">To 1000<small>everything counts single</small></button><button type="button" class="opt" data-gnew="2500">To 2500<small>single, double, triple</small></button></div>'
+      +'<div class="actions" style="margin-top:14px"><button class="ghost" type="button" data-go="home">Not now</button></div></div>';
+    return;
+  }
+  if(G.phase==='count'){
+    const r=G.res,f=r.factor,num=(v,dash)=>dash&&!v?'–':v;
+    const row=(label,key,dash,cls)=>'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+label+'</td><td class="n">'+num(r.rows[0][key],dash)+'</td><td class="n">'+num(r.rows[1][key],dash)+'</td></tr>';
+    const named=(st.pushed?SEAT_DOES[st.vorhand]+' pushed, and '+SEAT_DOES[st.namer].replace(/^T/,'t').replace(/^Y/,'y')+' named ':SEAT_DOES[st.namer]+' named ')+gameName(st.game)+'.';
+    const verdict=r.match===0?'Nine tricks for Idaho: a Match.':r.match===1?'Nine tricks for Winterthur: a Match. It happens to the best of us.'
+      :r.rows[0].written>r.rows[1].written?'This round goes to Idaho.':r.rows[0].written<r.rows[1].written?'This round goes to Winterthur.':'An even round.';
+    const end=!gm.over?'':'<p><b>'+TEAMS[gm.winner].name+' has reached '+gm.target+' and wins the game.</b> '
+      +(r.both?'Both teams passed the total in this round. Then the order decides: Stöck, Weis, Stich. '+TEAMS[gm.winner].name+' got there first. ':'')
+      +(gm.winner===0?'At a real table you thank the other team the moment you have enough: Bedanke'+spk('bedanke')+'. Here the round is always played to the end.':'The lions thank you politely: Bedanke'+spk('bedanke')+'. The potatoes want a rematch.')+'</p>';
+    app.innerHTML='<div class="slate">'+scoreHTML(r.after)+'<div class="vreni-row" style="margin-top:12px">'+vreni(gm.over&&gm.winner===1?'oops':'happy')+'<div class="bubble"><h2>'+(gm.over?'The game is over':'Round '+gm.round+' goes on the slate')+'</h2>'
+      +'<p>'+named+' <b>'+verdict+'</b></p>'
+      +(r.match===0?'<p class="chalk">Heitere Fahne, en Match!<span class="tr">Good heavens, a Match!</span></p>':'')+'</div></div>'
+      +'<table class="sheet-table gcount" style="margin-top:12px"><thead><tr><th>'+gameName(st.game)+'</th><th class="n">Idaho</th><th class="n">Winterthur</th></tr></thead><tbody>'
+      +row('Tricks','tricks')+row('Match','match',true)+row('Weis','weis',true)+row('Stöck','stoeck',true)+row('Together','sum',false,'sum')
+      +(gm.factors?'<tr><td>Factor</td><td class="n">× '+f+'</td><td class="n">× '+f+'</td></tr>':'')
+      +row('On the slate','written',false,'write')+'</tbody></table>'
+      +'<p class="small dim" style="margin-top:8px">Idaho: '+r.before[0]+' + '+r.rows[0].written+' = '+r.after[0]+'. Winterthur: '+r.before[1]+' + '+r.rows[1].written+' = '+r.after[1]+'. The game goes to '+gm.target+'.</p>'
+      +end
+      +(G.mistakes?'<p class="small dim">'+G.mistakes+(G.mistakes===1?' card was':' cards were')+' not allowed along the way.</p>':'')
+      +'<div class="actions" style="margin-top:16px">'+(gm.over?'<button class="primary" type="button" data-gact="newgame">Play another game</button>':'<button class="primary" type="button" data-gact="nextround" id="next-btn">Deal the next round</button>')
+      +'<button class="ghost" type="button" data-go="home">Back to the path</button></div>'
+      +(gm.over?'':'<p class="small dim" style="margin-top:8px">Your game is saved. Next the deal moves on: '+SEAT_IS[gm.round%4].toLowerCase()+' Vorhand.</p>')+'</div>';
+    return;
+  }
+  const showAid=G.help===0||(G.help===1&&G.hinted);
+  const mine=st.hands[0],myTurn=G.phase==='play'&&st.turn===0&&st.trick.length<4;
+  const legal=myTurn?stLegal(st,0):[];
+  const tm=c=>showAid&&st.trump&&c.s===st.trump?' tm':'';
+  const hand='<div class="cards hand">'+mine.map((c,i)=>'<div class="cardbox"><button type="button" class="card'+tm(c)+(myTurn&&showAid&&!legal.includes(i)?' offsuit':'')+(G.bad===i?' wrong':'')+'" data-gcard="'+i+'"'+(myTurn?'':' disabled')+'>'+cardSVG(c)+'</button></div>').join('')+'</div>';
+  const trickNo=Math.min(st.done.length+(G.phase==='trickdone'?0:1),9),bidding=G.phase==='bid'||G.phase==='named';
+  const top='<div class="lesson-top"><span class="t">'+(bidding?'The whole game · Round '+(gm.round+1):'Round '+(gm.round+1)+' · Trick '+trickNo+' of 9')+'</span><button class="ghost" type="button" data-go="home" aria-label="Leave the game">Leave</button></div>';
+  const helpSeg='<div class="help"><span>Help:</span><div class="seg" role="group" aria-label="Help level">'+HELP.map((h,i)=>'<button type="button" data-help="'+i+'" aria-pressed="'+(G.help===i)+'">'+h+'</button>').join('')+'</div></div>';
+  if(G.phase==='bid'){
+    const toMe=G.ask==='pushed',opts=GAME_OPTS_ALL().concat(toMe?[]:[{id:'push',label:'Gschobe',sub:'push to my partner'}]);
+    app.innerHTML=top+gameSlateHTML(gm)+'<h2 class="prompt">'+(toMe?'Your partner is Vorhand and pushes. You must name the game.':'You are Vorhand. What do you say?')+'</h2>'
+      +'<div class="table"><span class="row-label">Your hand</span>'+hand+'</div>'
+      +'<div class="options">'+opts.map(o=>'<button type="button" class="opt" data-gsay="'+o.id+'">'+(o.icon?'<span class="oi">'+symSVG(o.icon)+'</span>':'')+o.label+'<small>'+o.sub+(gm.factors&&FACTOR[o.id]?' · × '+FACTOR[o.id]:'')+'</small></button>').join('')+'</div>'
+      +(showAid?'<div class="aid"><span>Count your sure tricks from the top and from the bottom. Five or more: Obenabe or Undenufe. If not, look for a Trumpf suit:</span>'+handSummaryHTML(mine)+RULE_OF_THUMB+'</div>'
+        :G.help===1?'<div class="actions"><button class="ghost" type="button" data-gact="hint">Ask Vreni for a hint</button></div>':'')
+      +helpSeg;
+    return;
+  }
+  const shown=G.phase==='trickdone'?G.shown:{cards:st.trick,leader:st.leader,winner:-1};
+  const slot=seat=>{
+    const k=(seat-shown.leader+4)%4,c=shown.cards[k];
+    return '<div class="rs rs'+seat+(shown.winner===seat?' won':'')+'"><span class="rn">'+badgeSVG(seat%2)+SEATS[seat]+(shown.winner===seat?' <span class="tag win">wins</span>':c&&k===0?' <span class="tag">led</span>':'')+'</span>'
+      +(c?'<span class="card'+tm(c)+'">'+cardSVG(c)+'</span>':'<span class="card ghostcard"></span>')+'</div>';
+  };
+  const fct=gm.factors?FACTOR[st.game]:0;
+  const chip=(st.mode?'<div class="trumpchip"><span>No Trumpf</span><i><b>'+MODE_NAME[st.mode]+'</b></i></div>'
+    :'<div class="trumpchip"><span>Trumpf</span><i>'+symSVG(st.trump)+'<b>'+suitOf(st.trump).name+'</b></i></div>')
+    +(fct?'<div class="gfactor" aria-label="This game counts '+FACTOR_WORD[fct]+'"><b>× '+fct+'</b><span>'+FACTOR_WORD[fct]+'</span></div>':'');
+  app.innerHTML=top+scoreHTML(st.score)+gameSlateHTML(gm)
+    +'<div class="table rtable">'+chip+'<div class="rt">'+[2,3,1,0].map(slot).join('')+'</div></div>'
+    +'<div class="slate fb rmsg'+(G.mood==='oops'?' no':'')+'" id="round-msg" aria-live="polite"><div class="vreni-row">'+vreni(G.mood,'sm')+'<div class="bubble"><p>'+G.msg+'</p>'
+    +(G.phase==='named'?'<div class="actions" style="margin-top:8px"><button class="primary" type="button" data-gact="play" id="next-btn">Start the round</button></div>':'')
+    +(G.phase==='trickdone'?'<div class="actions" style="margin-top:8px"><button class="primary" type="button" data-gact="next" id="next-btn">'+(st.done.length===9?'Count the points':'Next trick')+'</button></div>':'')
+    +(myTurn&&G.help===1&&!G.hinted?'<div class="actions" style="margin-top:8px"><button class="ghost" type="button" data-gact="hint">Ask Vreni for a hint</button></div>':'')
+    +(myTurn&&showAid&&st.trick.length?'<p class="small dim">The faded cards are not allowed right now.</p>':'')
+    +'</div></div></div>'
+    +(mine.length?'<div class="table rhand" role="group" aria-label="Your hand">'+hand+'</div>':'')+helpSeg;
+}
+function gameClick(t){
+  if(t.dataset.help!==undefined){G.help=+t.dataset.help;G.hinted=false;renderGame();return}
+  if(t.dataset.gnew!==undefined&&G.phase==='intro'){gameBegin(+t.dataset.gnew);window.scrollTo(0,0);return}
+  if(t.dataset.gact==='resume'&&G.phase==='intro'&&S.game){gameBegin(0);window.scrollTo(0,0);return}
+  if(t.dataset.gact==='hint'){G.hinted=true;if(!G.hintSaid){G.hintSaid=true;voice('zerscht-daenke')}renderGame();return}
+  if(t.dataset.gsay!==undefined&&G.phase==='bid'){gameSay(t.dataset.gsay);return}
+  if(t.dataset.gact==='play'&&G.phase==='named'){G.phase='play';gameBots();return}
+  if(t.dataset.gcard!==undefined){gameTap(+t.dataset.gcard);return}
+  if(t.dataset.gact==='next'&&G.phase==='trickdone'){
+    if(G.st.done.length===9){gameFinish();window.scrollTo(0,0);return}
+    G.phase='play';G.shown=null;gameBots();return;
+  }
+  if(t.dataset.gact==='nextround'&&G.phase==='count'&&!G.gm.over){gameNextRound();window.scrollTo(0,0);return}
+  if(t.dataset.gact==='newgame'&&G.phase==='count'){G.phase='intro';G.gm=null;G.st=null;renderGame();window.scrollTo(0,0);return}
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click',e=>{
   const t=e.target.closest('button');if(!t)return;
@@ -2067,6 +2389,7 @@ document.addEventListener('click',e=>{
   if(t.id==='sound-btn'){S.sound=!S.sound;save();syncSound();if(S.sound)sfx('good');return}
   if(t.dataset.say){say(t.dataset.say);return}
   if(t.dataset.stage!==undefined&&t.dataset.lesson!==undefined){startLesson(+t.dataset.stage,+t.dataset.lesson);window.scrollTo(0,0);return}
+  if(G){gameClick(t);return}
   if(R){roundClick(t);return}
   if(!L)return;
   const q=L.queue[L.idx];

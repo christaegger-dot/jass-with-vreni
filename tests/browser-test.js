@@ -182,6 +182,10 @@ function expected(q) {
   ok(d.spk === 17, 'sheet has 17 speaker buttons: 4 suits, 9 cards, 4 words (' + d.spk + ')');
   ok(d.clips === (SITE ? 0 : 52), (SITE ? 'public site: recording check removed' : 'recording check lists 52 clips') + ' (' + d.clips + ')');
   await overflow('cards sheet');
+  if (SITE) {
+    const pdfs = await page.evaluate(async () => { const out = []; for (const a of document.querySelectorAll('a[download]')) { const r = await fetch(a.href); const b = new Uint8Array(await r.arrayBuffer()); out.push([a.getAttribute('href'), r.status, r.headers.get('content-type'), String.fromCharCode(...b.slice(0, 5)), b.length]); } return out; });
+    ok(pdfs.length === 2 && pdfs.every(p => p[1] === 200 && p[3] === '%PDF-' && p[4] > 20000), 'public site: both cheat sheets download as PDF ' + JSON.stringify(pdfs.map(p => [p[0].split('/').pop(), p[1], p[2], p[4]])));
+  }
   // speaker button really plays
   await click('.spk[data-say="under"]'); await sleep(400);
   const sp = await page.evaluate(() => playing ? { src: playing.src.split('/').pop(), t: playing.currentTime, paused: playing.paused } : null);

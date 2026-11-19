@@ -130,7 +130,7 @@ button.card:hover:not(:disabled){transform:translateY(-4px)}
 .breaks{display:flex;flex-direction:column;gap:10px}
 .break{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
 .break h3{font-family:var(--font-display);font-weight:400;font-size:19px;margin:6px 0 0;letter-spacing:.3px}
-.break a:not(.link){color:var(--gold)}
+.break a:not(.link),.breaks p a{color:var(--gold)}
 .player{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#000}
 .player iframe{width:100%;height:100%;border:0;display:block}
 a.link{display:inline-block;color:var(--gold);border-color:var(--gold);text-decoration:none;font-weight:700;margin-right:8px}
@@ -567,6 +567,15 @@ const PUBLIC_SITE=true;
 const SONG_URL='https://youtu.be/V450wfaf0jE';
 const player=(id,title)=>'<div class="player"><iframe src="https://www.youtube-nocookie.com/embed/'+id+'" title="'+title+'" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe></div>';
 const SKETCH_URL='https://youtu.be/7F2mBZ3Axs8';
+// Printable cheat sheets, built by tools/make-cheatsheets.js. One US Letter page each.
+const SHEETS=[
+  ['cheatsheets/jass-cheat-sheet-1-the-cards.pdf','1 · The cards','Suits, card names, how to say them and how to read a card.'],
+  ['cheatsheets/jass-cheat-sheet-2-rank-and-points.pdf','2 · Rank and points','Who wins a trick, what each card is worth, and one trick worked out.']
+];
+function sheetsHTML(){
+  if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
+  return SHEETS.map(x=>'<div class="break"><a class="ghost link" href="'+x[0]+'" download>Cheat sheet '+x[1]+' (PDF)</a><span class="small dim">'+x[2]+'</span></div>').join('');
+}
 const extLink=(url,label)=>'<a class="ghost link" href="'+url+'">'+label+'</a>';
 const songLink=label=>extLink(SONG_URL,label);
 const WORDS=[['jass','Jass','yahss','the game, and what you do: jassen'],['schieber','Schieber','SHEE-ber','the kind of Jass you are learning'],['stich','Stich','shtikh','a trick: four cards, one from each player'],['farb-aagaeh','Farb aagäh','farb AH-gah','to follow suit']];
@@ -609,6 +618,7 @@ function renderHome(){
     +'</div></div></div>'
     +'<div class="path"><h2 class="prompt">Chapter 1 · First tricks</h2>'+stages
     +'<p class="later"><b>Still to come:</b> Chapter 2 · Trumpf, Chapter 3 · Playing well, Chapter 4 · The full game.</p></div>'
+    +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
     +'<div class="slate breaks"><h2>For the breaks</h2><p class="dim small">Two Swiss classics on YouTube. Both are in Swiss German, which is half the fun.</p>'
     +'<div class="break">'+(PUBLIC_SITE?'<h3>Vreni’s favourite Jass song</h3>'+player('V450wfaf0jE','E schöni Jass-Rundi by Oesch’s die Dritten'):songLink('Vreni’s favourite Jass song'))+'<span class="small dim">«E schöni Jass-Rundi» by Oesch’s die Dritten. She sings along. You have been warned.'+(PUBLIC_SITE?' <a href="'+SONG_URL+'">Open on YouTube</a>':'')+'</span></div>'
     +'<div class="break">'+(PUBLIC_SITE?'<h3>Emil plays Jass</h3>'+player('7F2mBZ3Axs8','Der Jasser, a sketch by Emil, 1974'):extLink(SKETCH_URL,'Emil plays Jass'))+'<span class="small dim">«Der Jasser», a sketch by the comedian Emil from 1974. Vreni says she has met this man at every table.'+(PUBLIC_SITE?' <a href="'+SKETCH_URL+'">Open on YouTube</a>':'')+'</span></div></div>';
@@ -619,6 +629,7 @@ function renderDeck(){
   L=null;
   app.innerHTML='<div class="slate" style="display:flex;flex-direction:column;gap:14px">'
     +'<div><h1>The cards</h1><p class="dim">Your cheat sheet for Chapter 1. Come back whenever you like.</p></div>'
+    +'<div class="breaks"><h2>Take it to the table</h2>'+sheetsHTML()+'</div>'
     +'<div><h2>Four suits</h2>'+suitsHTML()+'</div>'
     +'<div><h2>Nine cards in each suit</h2><div class="scroll"><table class="sheet-table"><thead><tr><th>Card</th><th>Say it</th><th>Like</th><th>Points</th></tr></thead><tbody>'
     +RANKS.map(r=>'<tr><td><b>'+r.name+'</b>'+spk(r.id)+'</td><td class="say">'+(r.say||(r.ch+' · '+r.chSay))+'</td><td>'+r.en+'</td><td class="n">'+r.pts+'</td></tr>').join('')

@@ -9,6 +9,8 @@ Live: https://jass-with-vreni.netlify.app
 
 - `public/index.html` is the whole app: one page, no build step.
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
+- `public/cheatsheets/` holds the printable cheat sheets as PDF, one US Letter page each.
+- `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
 - `tests/logic-test.js` checks the rules and the question generators.
 - `tests/browser-test.js` plays through every lesson in a real browser.
 - `netlify.toml` tells Netlify to publish the `public` folder.
@@ -42,6 +44,14 @@ URL=http://127.0.0.1:8765/index.html SITE=1 node tests/browser-test.js
 ```
 
 The browser test expects Google Chrome at `/usr/bin/google-chrome` and the local server from above.
+
+## Rebuilding the cheat sheets
+
+```
+node tools/make-cheatsheets.js
+```
+
+Run it with the local server from above. Do this whenever the card drawings or the sheet texts change.
 
 ## One switch to know
 

@@ -90,10 +90,10 @@ function greplay(start, done, game) {
     });
     const w = (t.leader + (mode ? mWin(trick, mode) : tWin(trick, trump))) % 4, pts = trick.reduce((a, c) => a + (mode ? MPTS[mode][c.r] : tVal(c, trump)), 0) + (n === 8 ? 5 : 0);
     if (w !== t.winner || pts !== t.points) bad.push('trick ' + (n + 1) + ': app says seat ' + t.winner + ' with ' + t.points + ', independent says seat ' + w + ' with ' + pts);
-    if (n < 8 && done[n + 1].leader !== w) bad.push('trick ' + (n + 2) + ' is not led by the winner of the one before');
+    if (n < 8 && done[n + 1] && done[n + 1].leader !== w) bad.push('trick ' + (n + 2) + ' is not led by the winner of the one before');
     sum[w % 2] += pts; won[w % 2]++; tricks.push([w % 2, pts]);
   });
-  if (hands.some(h => h.length)) bad.push('cards left over');
+  if (done.length === 9 && hands.some(h => h.length)) bad.push('cards left over');
   return { sum, won, bad, tricks };
 }
 // Chapter 3, worked out here without looking at the app's own answer
@@ -154,7 +154,7 @@ function expected(q) {
       'Who plays the first card': 'I do. Vorhand always leads.', 'Whose turn is it now': 'The player on my right', 'how long does a Trumpf stay': 'For one round of nine tricks',
       'When do you announce your Weis': 'When I play my card in the first trick', 'When do you call «Stöck»': 'When I play the second of the two cards', 'What happens to your 20 points': 'They count anyway',
       'It is Obenabe, and you hold König and Ober': 'No. Without a Trumpf suit there are no Stöck', 'Is that a Weis': 'No. A row does not go round the corner', 'Which order do rows follow there': 'The same as everywhere: Ass, König, Ober, Under, Banner, 9',
-      'What is a Kontermatch': 'The team that did not name the game wins all nine tricks', 'How many points is a Match worth': '257', 'all nine tricks in Obenabe': '771',
+      'What is a Kontermatch': 'The team that did not make the call wins all nine tricks', 'How many points is a Match worth': '257', 'all nine tricks in Obenabe': '771',
       'When is a game of Schieber over': 'When one team reaches the agreed total', 'What total do you play to': '2500', 'May you thank right away': 'Yes. I can thank as soon as we have enough', 'In which order do the points count': 'Stöck, then Weis, then tricks', 'Both teams need 20 points': 'They do: Stöck count before Weis',
       'How do you end the game': 'I thank the other team: that declares the game won', 'your team is 10 points short': 'Your team loses the game', 'Do you have to use single, double and triple': 'No. A table can agree that everything counts single' }; const k = Object.keys(key).find(k => q.prompt.includes(k)); return q.options.find(o => o.label === key[k]).id; }
     case 'suit': return q.cards[0].s;
@@ -298,6 +298,7 @@ function expected(q) {
   r = await playLesson(0, 3, [4, 7]); ok(r.score === '80%', 'check 1.4 with two wrong -> 80% (got ' + r.score + ')');
   fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
   ok(fin.next === 'On to Stage 2' && fin.primary === 'On to Stage 2' && /Next: Stage 2 · Stronger or weaker/.test(fin.text), 'a passed check leads on to the next stage');
+  ok(!/Celebrate with a song/.test(fin.text), 'a check in the middle of a chapter: no song');
   await click('[data-go="home"]');
   ok(await page.evaluate(() => { const b = document.querySelector('#continue-btn'); return b && b.textContent === 'Continue' && b.dataset.stage === '1' && b.dataset.lesson === '0' && /Stage 2 · Stronger or weaker/.test(b.parentElement.innerText); }), 'home, later: «Continue» points at the first lesson that is open and not done');
   await click('#continue-btn');
@@ -324,7 +325,7 @@ function expected(q) {
   // ---- stage 2 and 3
   for (const [si, li] of [[1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2]]) {
     r = await playLesson(si, li); ok(r.score === '100%', 'lesson ' + (si + 1) + '.' + (li + 1) + ' all correct -> 100% (got ' + r.score + ')');
-    if (si === 2 && li === 2) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 1 is done. Stage 4 opens Chapter 2')), 'last check of chapter 1 announces chapter 2');
+    if (si === 2 && li === 2) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 1 is done. Stage 4 opens Chapter 2') && /Celebrate with a song/.test(document.querySelector('#app').innerText)), 'last check of chapter 1 announces chapter 2, with the song');
     await click('[data-go="home"]');
   }
   ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 1 is yours')), 'home shows chapter-1-complete message');
@@ -424,10 +425,10 @@ function expected(q) {
       });
       const w = (t.leader + tWin(trick, trump)) % 4, pts = trick.reduce((a, c) => a + tVal(c, trump), 0) + (n === 8 ? 5 : 0);
       if (w !== t.winner || pts !== t.points) bad.push('trick ' + (n + 1) + ': app says seat ' + t.winner + ' with ' + t.points + ', independent says seat ' + w + ' with ' + pts);
-      if (n < 8 && done[n + 1].leader !== w) bad.push('trick ' + (n + 2) + ' is not led by the winner of the one before');
+      if (n < 8 && done[n + 1] && done[n + 1].leader !== w) bad.push('trick ' + (n + 2) + ' is not led by the winner of the one before');
       sum[w % 2] += pts;
     });
-    if (hands.some(h => h.length)) bad.push('cards left over');
+    if (done.length === 9 && hands.some(h => h.length)) bad.push('cards left over');
     return { sum, bad };
   }
   async function playRound(choice, opts = {}) {
@@ -496,6 +497,7 @@ function expected(q) {
   await page.evaluate(() => { playing = null; });
   let rr = await playRound('schelle', { illegal: true, aids: true });
   ok(rr.trump === 'schelle' && rr.triedIllegal && rr.aidChecked, 'round 1: Schelle named, a refused card and the three help levels were exercised');
+  ok(await page.evaluate(() => { const t = document.querySelector('#app').innerText; return /Chapter 2 is done\. Stage 8 and Stage 10 are open/.test(t) && /Celebrate with a song/.test(t); }), 'the first finished round closes chapter 2: both ways on are named, and the song is offered');
   await overflow('round, final count');
   ok(await page.evaluate(() => S.rounds === 1 && S.best['6-0'] === 1), 'round 1 is saved');
   // second round: the prepared deal to push
@@ -520,6 +522,9 @@ function expected(q) {
   await page.evaluate(() => { BOT_DELAY = 0; });
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 24 && document.querySelector('.lesson-btn[data-stage="6"][data-lesson="0"] .lvl').textContent === '3 rounds played'), 'chapters 1 and 2: 24 lessons ticked, three rounds counted');
   ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('You have played a whole round') && !document.querySelector('.lesson-btn[data-stage="7"][data-lesson="0"]').disabled && document.querySelector('.lesson-btn[data-stage="8"][data-lesson="0"]').disabled), 'after the round: chapter 3 is announced, stage 8 open, stage 9 locked');
+  ok(await page.evaluate(() => { const dis = (si) => document.querySelector('.lesson-btn[data-stage="' + si + '"][data-lesson="0"]').disabled, note = si => { const e = document.querySelectorAll('section.stage')[si].querySelector('.needs'); return e ? e.textContent : ''; };
+    return !dis(9) && dis(10) && dis(12) && dis(13) && note(12) === 'Opens after Stage 9 and Stage 12.' && note(13) === 'Opens after Stage 12.' && note(10) === '' && note(9) === '' && /Take them in any order/.test(document.querySelector('#app').innerText) && document.querySelector('#continue-btn').dataset.stage === '7'; }),
+    'after the round both ways are open: chapter 3 (stage 8) and chapter 4 (stage 10); stage 13 and 14 say what they wait for; «Continue» follows the path');
   for (let k = 0; k < 6; k++) { await click('.lesson-btn[data-stage="6"][data-lesson="0"]'); await click('[data-ract="deal"]'); const h = (await getR()).st.hands[0]; const strong = SUIT_IDS.find(s => pattern(h, s)); const x = await playRound(strong || 'push', { pick: (legal) => Math.floor(Math.random() * legal.length) }); if (!x.s || x.s.phase !== 'done') ok(false, 'extra round ' + k + ' did not finish'); await click('[data-go="home"]'); }
 
 
@@ -545,7 +550,7 @@ function expected(q) {
   const weaker = s9.legal.find(i => !s9.good.includes(i));
   await click('button.card[data-group="hand"][data-card="' + weaker + '"]');
   let f9 = await page.evaluate(() => ({ ok: L.ok, verdict: document.querySelector('.verdict').textContent, right: Array.from(document.querySelectorAll('.hand .card.right')).map(e => +e.dataset.card), wrong: Array.from(document.querySelectorAll('.hand .card.wrong')).map(e => +e.dataset.card), text: document.querySelector('.fb').innerText, len: L.queue.length }));
-  ok(f9.ok === false && f9.verdict === 'Allowed, but there is a better card' && JSON.stringify(f9.right) === JSON.stringify(s9.good) && JSON.stringify(f9.wrong) === JSON.stringify([weaker]) && /Schmiere/.test(f9.text) && /Tactic/.test(f9.text) && !/not a rule/i.test(f9.text) && f9.len === 7, 'a legal but weaker card: «Allowed, but there is a better card», the better one marked green, tagged as a tactic (the sentence «not a rule» stands once, in the legend of the lesson), the question comes back');
+  ok(f9.ok === false && f9.verdict === 'Allowed, but there is a better card' && JSON.stringify(f9.right) === JSON.stringify(s9.good) && JSON.stringify(f9.wrong) === JSON.stringify([weaker]) && /Schmiere/.test(f9.text) && /Tactic/.test(f9.text) && !/not a rule/i.test(f9.text) && f9.len === 5, 'a legal but weaker card: «Allowed, but there is a better card», the better one marked green, tagged as a tactic (the sentence «not a rule» stands once, in the legend of the lesson), the question comes back');
   await overflow('best-card feedback');
   await click('[data-act="next"]');
   await page.evaluate(() => { const q = qSmear(false); q.first = true; L.queue[L.idx] = q; renderLesson(); });
@@ -572,7 +577,8 @@ function expected(q) {
   ok(await page.evaluate(() => L.ok === true && L.line[2] === 'trumpf-uszieh' && playing && playing.src.split('/').pop() === 'trumpf-uszieh.mp3' && document.querySelector('.verdict').textContent === 'Correct'), 'leading the Puur: Vreni says «Trumpf uszieh»');
   await click('[data-go="home"]');
   for (const [si, li] of [[8, 0], [8, 1], [8, 2], [8, 3], [8, 4]]) {
-    r = await playLesson(si, li, li === 3 ? [2] : []); ok(r.score === (li === 3 ? '83%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 3 ? '83% with one wrong card' : '100%') + ' (got ' + r.score + ')');
+    r = await playLesson(si, li, li === 3 ? [2] : []); ok(r.score === (li === 3 ? '75%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 3 ? '75% with one wrong card of four' : '100%') + ' (got ' + r.score + ')');
+    if (li === 3) { const fs = await page.evaluate(() => ({ chalk: document.querySelector('.chalk').childNodes[0].textContent, primary: document.querySelector('.actions .primary').textContent, n: L === null ? STAGES[8].lessons[3].n : 0 })); ok(fs.chalk === 'Guet gmacht!' && fs.primary === 'On to the check' && fs.n === 4, 'a short lesson (four exercises) with one slip still counts as well done ' + JSON.stringify(fs)); }
     if (li === 4) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 3 is done. Stage 10 opens Chapter 4')), 'check 9.5 announces chapter 4');
     await click('[data-go="home"]');
   }
@@ -590,7 +596,7 @@ function expected(q) {
   await overflow('Undenufe question');
   await click('[data-go="home"]');
   for (const [si, li] of [[9, 0], [9, 1], [9, 2], [9, 3], [9, 4], [9, 5]]) {
-    r = await playLesson(si, li, li === 1 ? [3] : []); ok(r.score === (li === 1 ? '83%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 1 ? '83% with one wrong' : '100%') + ' (got ' + r.score + ')');
+    r = await playLesson(si, li, li === 1 ? [3] : []); ok(r.score === (li === 1 ? '75%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 1 ? '75% with one wrong of four' : '100%') + ' (got ' + r.score + ')');
     if (li === 5) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Stage 11 is open')), 'check 10.6 opens stage 11');
     await click('[data-go="home"]');
   }
@@ -624,7 +630,7 @@ function expected(q) {
     await click('[data-go="home"]');
   }
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 45), 'stages 1 to 11: 45 lessons ticked');
-  ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('every game and every bonus')), 'home shows the message after stage 11');
+  ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('every call and every bonus')), 'home shows the message after stage 11');
 
   // ---- stage 12: the slate
   await click('.lesson-btn[data-stage="11"][data-lesson="0"]');
@@ -648,7 +654,7 @@ function expected(q) {
     if (li === 4) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Chapter 4 is done. You know every rule of the game now. Stage 13 opens Chapter 5')), 'check 12.5 announces chapter 5');
     await click('[data-go="home"]');
   }
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 50 && document.querySelector('#app').innerText.includes('which game to name') && !document.querySelector('.lesson-btn[data-stage="12"][data-lesson="0"]').disabled), 'stages 1 to 12: 50 lessons ticked, stage 13 open, and home points to it');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 50 && document.querySelector('#app').innerText.includes('which call to make') && document.querySelector('#app').innerText.includes('You could sit down at a real table now') && !document.querySelector('.lesson-btn[data-stage="12"][data-lesson="0"]').disabled && !document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"]').disabled && document.querySelector('#continue-btn').dataset.stage === '12'), 'stages 1 to 12: 50 lessons ticked, stage 13 and the whole game are open, and home points to stage 13');
 
   // ---- chapter 5, stage 13: sure tricks, which game to name, the first card after a push
   await click('.lesson-btn[data-stage="12"][data-lesson="0"]');
@@ -691,23 +697,61 @@ function expected(q) {
     if (li === 5) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Stage 14 is open')), 'check 13.6 opens the whole game');
     await click('[data-go="home"]');
   }
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 56 && document.querySelector('#app').innerText.includes('Now play it all') && !document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"]').disabled && document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"] .lvl').textContent === 'Six games, one slate'), 'stages 1 to 13: 56 lessons ticked, the whole game is open and not yet played');
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 56 && document.querySelector('#app').innerText.includes('Now play it all') && !document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"]').disabled && document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"] .lvl').textContent === 'A game to 1000 or 2500'), 'stages 1 to 13: 56 lessons ticked, the whole game is open and not yet played');
 
   // ---- stage 14: the whole game. Every round played through the page is counted again here: tricks, Weis, Stöck, factor, slate.
   const getG = () => page.evaluate(() => G ? { phase: G.phase, ask: G.ask, msg: G.msg, gm: G.gm ? JSON.parse(JSON.stringify(G.gm)) : null, st: G.st ? JSON.parse(JSON.stringify(G.st)) : null, res: G.res ? JSON.parse(JSON.stringify(G.res)) : null } : null);
   let refusedInGame = 0;
-  async function playGameRound(label) {            // from the screen that says who named what, to the round on the slate
+  // Plays one round of the whole game, from the screen that says who made the call to the count.
+  // opt.forget: say «No Weis» although you hold one. opt.thank === false: never thank. opt.early: thank once before it is enough. opt.first: the card to lead.
+  async function playGameRound(label, opt = {}) {
     const g0 = await getG(), start = g0.st.hands, game = g0.st.game, v = g0.st.vorhand, before = g0.gm.total.slice(), factors = g0.gm.factors, target = g0.gm.target;
-    const mode = MORD[game] ? game : null, trump = mode ? null : game;
-    ok(g0.phase === 'named' && g0.st.leader === v && g0.st.turn === v, label + ': Vorhand plays the first card');
+    const mode = MORD[game] ? game : null, trump = mode ? null : game, f = factors ? FACT[game] : 1;
+    ok(g0.phase === 'named' && g0.st.leader === v && g0.st.turn === v && !/You hold a Weis/.test(g0.msg), label + ': Vorhand plays the first card, and nobody tells you which Weis you hold');
+    const mineW = weisList(start[0]), silent = !!opt.forget && mineW.length > 0;
+    const w = gWeis(silent ? start.map((h, x) => x ? h : []) : start, game, v), weis = [0, 1].map(tm => w.team === tm ? w.points : 0);
+    const holder = trump ? [0, 1, 2, 3].find(x => start[x].some(c => c.s === trump && c.r === 'K') && start[x].some(c => c.s === trump && c.r === 'O')) : undefined;
+    const stoeckTeam = holder === undefined ? -1 : holder % 2, held = [0, 1].map(tm => stoeckTeam === tm ? 20 : 0);
     await click('[data-gact="play"]');
-    let weisTold = false, stoeckTold = false, tried = false;
+    let weisTold = false, stoeckTold = false, tried = false, asked = 0, thanked = false, could = 0, out = -1, nudged = null, tooEarly = false, leadMsg = null, led = false;
     for (let guard = 0; guard < 6000; guard++) {
       const s = await getG();
       if (s.phase === 'count') break;
+      if (s.phase === 'weis') {
+        asked++;
+        const ui = await page.evaluate(() => ({ btn: Array.from(document.querySelectorAll('[data-gweis]')).map(b => b.dataset.gweis).join(), tappable: document.querySelectorAll('[data-gcard]:not(:disabled)').length, aid: !!document.querySelector('#round-msg .aid .wt') }));
+        if (ui.btn !== 'yes,no' || ui.tappable !== 0 || !ui.aid || s.st.done.length !== 0 || s.st.turn !== 0) ok(false, label + ': the Weis question is wrong ' + JSON.stringify(ui));
+        if (asked === 1 && !opt.quiet) await overflow('whole game, the Weis question');
+        await click('[data-gweis="' + (mineW.length && !silent ? 'yes' : 'no') + '"]');
+        const a = await getG();
+        ok(a.phase === 'play' && (mineW.length ? (silent ? /You missed a Weis/.test(a.msg) && /not written/.test(a.msg) : /You announce /.test(a.msg)) : /No Weis: right/.test(a.msg)), label + ': the Weis question, answered ' + (mineW.length ? (silent ? 'with «No» although there is one' : 'with «Yes»') : 'with «No»'));
+        continue;
+      }
       if (s.phase === 'trickdone') {
-        if (s.st.done.length === 1) weisTold = /<b>Weis\.<\/b>|Nobody has a Weis/.test(s.msg);
+        const n = s.st.done.length;
+        if (n === 1) { weisTold = /<b>Weis\.<\/b>|Nobody has a Weis|Nobody announced a Weis/.test(s.msg); if (s.st.done[0].leader === 0) leadMsg = s.msg; }
         if (/calls? «Stöck»/.test(s.msg)) stoeckTold = true;
+        // who has enough now? Counted here without the app: the slate, plus the factor times tricks, Weis and the Stöck a team holds
+        const rp = greplay(start, s.st.done, game), run = [0, 1].map(tm => before[tm] + f * (rp.sum[tm] + weis[tm] + held[tm] + (n === 9 && rp.won[tm] === 9 ? 100 : 0))), has = run.map(x => x >= target);
+        let now = -1;
+        if (has[1]) now = has[0] && !could ? gFirst(target, before, held, weis, f, rp.tricks) : 1;
+        else if (has[0] && !could) could = n;
+        const app = await page.evaluate(() => ({ out: G.out, could: G.could, run: gameRun(G.gm, G.st), thank: (document.querySelector('[data-gact="thank"]') || {}).className || null, next: document.querySelector('#next-btn').textContent }));
+        if (JSON.stringify(app.run) !== JSON.stringify(run) || app.out !== now || app.could !== could) ok(false, label + ': the running count after trick ' + n + ' ' + JSON.stringify({ app, run, now, could }));
+        if (now >= 0) {
+          out = now;
+          ok(app.next === 'Count the points' && app.thank === null && (now === 1 ? /Winterthur thanks: Bedanke/.test(s.msg) : /Both teams have enough/.test(s.msg)), label + ': ' + (now === 1 ? 'Winterthur thanks the moment it has enough' : 'both teams have enough, and the order decides') + ' (after trick ' + n + ')');
+          await click('[data-gact="next"]'); continue;
+        }
+        if (could && n < 9 && opt.thank !== false) {
+          if (could === n) nudged = /That is enough/.test(s.msg) && app.thank === 'primary';
+          await click('[data-gact="thank"]'); thanked = true; out = 0; continue;
+        }
+        if (opt.early && !tooEarly && !could && n < 9 && app.thank) {
+          tooEarly = true; await click('[data-gact="thank"]');
+          const a = await getG();
+          ok(a.phase === 'trickdone' && /Too early/.test(a.msg) && /needs /.test(a.msg) && a.gm.over === false && a.st.done.length === n, label + ': thanking before it is enough ends nothing, and Vreni says what it would have cost');
+        }
         await click('[data-gact="next"]'); continue;
       }
       if (s.phase === 'play' && s.st.turn === 0 && s.st.trick.length < 4) {
@@ -720,24 +764,27 @@ function expected(q) {
           const a = await getG();
           ok(a.st.hands[0].length === hand.length && a.st.trick.length === s.st.trick.length && /Not allowed/.test(a.msg) && (mode ? /must follow suit/.test(a.msg) : a.msg.length > 30), label + ': a forbidden card stays in the hand, and Vreni says why');
         }
-        await click('[data-gcard="' + legal[0] + '"]'); continue;
+        let pick = legal[0];
+        if (opt.first && !led) { led = true; pick = hand.findIndex(c => c.s === opt.first.s && c.r === opt.first.r); }
+        await click('[data-gcard="' + pick + '"]'); continue;
       }
       await sleep(8);
     }
-    const s = await getG(), rp = greplay(start, s.st.done, game), f = factors ? FACT[game] : 1, w = gWeis(start, game, v);
-    const holder = trump ? [0, 1, 2, 3].find(x => start[x].some(c => c.s === trump && c.r === 'K') && start[x].some(c => c.s === trump && c.r === 'O')) : undefined;
-    const stoeckTeam = holder === undefined ? -1 : holder % 2, match = rp.won[0] === 9 ? 0 : rp.won[1] === 9 ? 1 : -1;
-    const want = [0, 1].map(tm => (rp.sum[tm] + (match === tm ? 100 : 0) + (w.team === tm ? w.points : 0) + (stoeckTeam === tm ? 20 : 0)) * f);
-    ok(s.phase === 'count' && s.st.done.length === 9 && rp.bad.length === 0 && rp.sum[0] + rp.sum[1] === 157, label + ': nine tricks, every card allowed, every winner and every count right' + (rp.bad.length ? ' -> ' + rp.bad.slice(0, 3).join(' | ') : ''));
-    ok(s.res.factor === f && s.res.rows[0].written === want[0] && s.res.rows[1].written === want[1] && s.gm.total[0] === before[0] + want[0] && s.gm.total[1] === before[1] + want[1], label + ': the slate, counted independently ' + JSON.stringify({ game, f, tricks: rp.sum, weis: w, stoeckTeam, match, want, app: s.res.rows.map(x => x.written) }));
+    const s = await getG(), rp = greplay(start, s.st.done, game), n = s.st.done.length, full = n === 9;
+    let kings = 0; if (holder !== undefined) s.st.done.forEach(t => t.cards.forEach((c, k) => { if ((t.leader + k) % 4 === holder && c.s === trump && 'KO'.includes(c.r)) kings++; }));
+    const called = kings === 2, match = full ? (rp.won[0] === 9 ? 0 : rp.won[1] === 9 ? 1 : -1) : -1;
+    const stoeckFor = tm => stoeckTeam === tm && (called || out === tm) ? 20 : 0;            // called, or shown by the team that thanks
+    const want = [0, 1].map(tm => (rp.sum[tm] + (match === tm ? 100 : 0) + weis[tm] + stoeckFor(tm)) * f);
+    ok(s.phase === 'count' && rp.bad.length === 0 && (full ? rp.sum[0] + rp.sum[1] === 157 : out >= 0) && asked === 1, label + ': ' + n + ' tricks, every card allowed, every winner and every count right, and one question about your Weis' + (rp.bad.length ? ' -> ' + rp.bad.slice(0, 3).join(' | ') : ''));
+    ok(s.res.factor === f && s.res.rows[0].written === want[0] && s.res.rows[1].written === want[1] && s.gm.total[0] === before[0] + want[0] && s.gm.total[1] === before[1] + want[1] && s.res.tricks === n && s.res.out === out, label + ': the slate, counted independently ' + JSON.stringify({ game, f, tricks: rp.sum, weis, stoeckTeam, called, match, out, want, app: s.res.rows.map(x => x.written) }));
     const cells = await page.evaluate(() => Array.from(document.querySelectorAll('.gcount tbody tr')).map(tr => Array.from(tr.children).map(td => td.textContent)));
     const last = cells[cells.length - 1] || [], cell = (name, tm) => { const r = cells.find(x => x[0] === name); return r ? r[tm + 1] : null; };
-    ok(last[0] === 'On the slate' && +last[1] === want[0] && +last[2] === want[1] && +cell('Tricks', 0) === rp.sum[0] && +cell('Tricks', 1) === rp.sum[1] && cell('Weis', 0) === (w.team === 0 ? String(w.points) : '–') && cell('Stöck', 1) === (stoeckTeam === 1 ? '20' : '–') && (factors ? cell('Factor', 0) === '× ' + f : cell('Factor', 0) === null), label + ': the table on the page shows the same numbers ' + JSON.stringify(cells));
-    ok(weisTold && (stoeckTeam < 0 || stoeckTold), label + ': the Weis is told after the first trick' + (stoeckTeam >= 0 ? ', and «Stöck» is called' : ''));
+    ok(last[0] === 'On the slate' && +last[1] === want[0] && +last[2] === want[1] && +cell('Tricks', 0) === rp.sum[0] && +cell('Tricks', 1) === rp.sum[1] && cell('Weis', 0) === (weis[0] ? String(weis[0]) : '–') && cell('Stöck', 1) === (stoeckFor(1) ? '20' : '–') && (factors ? cell('Factor', 0) === '× ' + f : cell('Factor', 0) === null), label + ': the table on the page shows the same numbers ' + JSON.stringify(cells));
+    ok(weisTold && (!called || stoeckTold), label + ': the Weis is told after the first trick' + (called ? ', and «Stöck» is called' : ''));
     const reached = [0, 1].filter(tm => s.gm.total[tm] >= target);
-    const winner = !reached.length ? -1 : reached.length === 1 ? reached[0] : gFirst(target, before, [stoeckTeam === 0 ? 20 : 0, stoeckTeam === 1 ? 20 : 0], [w.team === 0 ? w.points : 0, w.team === 1 ? w.points : 0], f, rp.tricks);
-    ok(s.gm.over === (reached.length > 0) && s.gm.winner === winner, label + ': the game is ' + (reached.length ? 'over, and the right team wins' : 'not over yet'));
-    return { s, want, game, f, w, stoeckTeam, reached, winner };
+    const winner = out >= 0 ? out : !reached.length ? -1 : reached.length === 1 ? reached[0] : gFirst(target, before, [called && stoeckTeam === 0 ? 20 : 0, called && stoeckTeam === 1 ? 20 : 0], weis, f, rp.tricks);
+    ok(s.gm.over === (out >= 0 || reached.length > 0) && s.gm.winner === winner && (out < 0 || s.gm.total[out] >= target), label + ': the game is ' + (s.gm.over ? 'over, and the right team wins' : 'not over yet'));
+    return { s, want, game, f, w, weis, stoeckTeam, stoeckFor, reached, winner, out, thanked, n, nudged, could, tooEarly, leadMsg, silent, mineW };
   }
   await click('.lesson-btn[data-stage="13"][data-lesson="0"]');
   ok(await page.evaluate(() => G && G.phase === 'intro' && L === null && R === null && Array.from(document.querySelectorAll('[data-gnew]')).map(b => b.dataset.gnew).join() === '1000,2500' && !document.querySelector('[data-gact="resume"]')), 'whole game: the intro offers two lengths, and there is nothing to continue yet');
@@ -767,13 +814,15 @@ function expected(q) {
   ok(r2.s.gm.total[0] === r1.want[0] + r2.want[0] && r2.s.gm.total[1] === r1.want[1] + r2.want[1] && r2.s.gm.log.length === 2, 'whole game: the slate adds round to round');
   await click('[data-gact="nextround"]');
   gg = await getG();
-  ok(gg.phase === 'bid' && gg.ask === 'pushed' && gg.st.vorhand === 2 && await page.evaluate(() => Array.from(document.querySelectorAll('[data-gsay]')).map(b => b.dataset.gsay).join() === 'eichle,rose,schelle,schilte,oben,unde' && /Your partner is Vorhand and pushes/.test(document.querySelector('h2.prompt').innerText)), 'whole game, round 3: your partner pushes, you must name the game, and Gschobe is not on offer');
+  ok(gg.phase === 'bid' && gg.ask === 'pushed' && gg.st.vorhand === 2 && await page.evaluate(() => Array.from(document.querySelectorAll('[data-gsay]')).map(b => b.dataset.gsay).join() === 'eichle,rose,schelle,schilte,oben,unde' && /Your partner is Vorhand and pushes/.test(document.querySelector('h2.prompt').innerText)), 'whole game, round 3: your partner pushes, you must make the call, and Gschobe is not on offer');
   await overflow('whole game, after your partner pushed');
   await click('[data-gsay="schilte"]'); await sleep(250);
   gg = await getG();
-  ok(gg.phase === 'named' && gg.st.trump === 'schilte' && gg.st.pushed === true && gg.st.namer === 0 && gg.st.leader === 2 && /Vreni would have said the same/.test(gg.msg) && /You hold a Weis: three in a row and three in a row/.test(gg.msg) && /Your partner plays the first card/.test(gg.msg) && /Schilte counts double/.test(gg.msg), 'whole game, round 3: you name Schilte, your partner still leads, and your two Weis are announced');
-  const r3 = await playGameRound('whole game, round 3 (Schilte)');
+  ok(gg.phase === 'named' && gg.st.trump === 'schilte' && gg.st.pushed === true && gg.st.namer === 0 && gg.st.leader === 2 && /Vreni would have said the same/.test(gg.msg) && !/You hold a Weis/.test(gg.msg) && /Your partner plays the first card/.test(gg.msg) && /Schilte counts double/.test(gg.msg), 'whole game, round 3: you make the call, Schilte, and your partner still leads');
+  const r3 = await playGameRound('whole game, round 3 (Schilte)', { forget: true });
   ok(r3.f === 2 && r3.stoeckTeam === 0 && r3.s.res.rows[0].stoeck === 20 && r3.s.res.rows[1].stoeck === 0, 'whole game, round 3: König and Ober of Trumpf in your hand are Stöck, 20 for Idaho before the factor');
+  ok(r3.silent && r3.mineW.length === 2 && r3.weis[0] === 0 && r3.s.res.rows[0].weis === 0 && await page.evaluate(() => /Your Weis \(40\) was not announced, so it is not on the slate/.test(document.querySelector('#app').innerText)), 'whole game, round 3: two rows of three that you did not announce are not written, and the count says so');
+  ok(r1.mineW.length === 1 && r1.s.res.rows[0].weis === r1.weis[0] && (r1.w.team === 0 ? r1.weis[0] >= 20 : r1.weis[0] === 0), 'whole game, round 1: you announced your row of three; it is written ' + (r1.w.team === 0 ? 'on the slate' : 'only if no higher Weis is against it, and this time there is one'));
   await click('[data-go="home"]');
   ok(await page.evaluate(() => G === null && document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"] .lvl').textContent === '3 rounds played' && document.querySelectorAll('.lesson-btn.done').length === 57), 'home: three rounds played, and all 57 lessons are ticked');
   ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('finished the whole course') && document.querySelector('.later').innerText.includes('That is the whole course')), 'home shows the end-of-course message');
@@ -786,11 +835,49 @@ function expected(q) {
   ok(gg.phase === 'named' && gg.gm.round === 3 && gg.st.vorhand === 3 && gg.gm.total[0] === r3.s.gm.total[0] && gg.gm.total[1] === r3.s.gm.total[1] && /The player on your left is Vorhand/.test(gg.msg), 'whole game, round 4: the slate is back, and the player on your left is Vorhand');
   await page.evaluate(() => { G.gm.total = [2440, 2440]; renderGame(); });      // both teams 60 short: this round ends the game
   const r4 = await playGameRound('whole game, the last round');
-  ok(r4.reached.length >= 1 && r4.s.gm.over === true, 'whole game: with both teams 60 short, the round ends the game');
+  ok(r4.s.gm.over === true && (r4.out >= 0 || r4.n === 9), 'whole game: with both teams 60 short, the round ends the game: ' + (r4.thanked ? 'you thank after trick ' + r4.n : r4.out === 1 ? 'Winterthur thanks after trick ' + r4.n : r4.out === 0 ? 'the order decides after trick ' + r4.n : 'the ninth trick decides'));
+  if (r4.thanked) ok(r4.nudged === true, 'whole game, guided: Vreni says when it is enough, and «Bedanke» is the main button');
   const endText = await page.evaluate(() => document.querySelector('#app').innerText.replace(/\s+/g, ' '));
-  ok(endText.includes('The game is over') && endText.includes((r4.winner === 0 ? 'Idaho' : 'Winterthur') + ' has reached 2500 and wins the game') && (r4.reached.length === 2) === /Stöck, Weis, Stich/.test(endText) && await page.evaluate(() => !!document.querySelector('.spk[data-say="bedanke"]') && !!document.querySelector('[data-gact="newgame"]') && !document.querySelector('[data-gact="nextround"]') && S.game === null && S.games === 1 && S.fullRounds === 4), 'whole game: the end names the winner, teaches Bedanke, and the finished game is no longer kept');
+  ok(endText.includes('The game is over') && endText.includes((r4.winner === 0 ? 'Idaho' : 'Winterthur') + ' has ' + r4.s.gm.total[r4.winner] + ' of 2500 and wins the game')
+    && (r4.thanked ? /You thanked the moment you had enough/.test(endText) : r4.out === 1 ? /Winterthur thanked/.test(endText) : r4.out === 0 ? /Stöck, Weis, Stich/.test(endText) : true)
+    && (r4.n < 9) === /The round stopped after trick/.test(endText) && (r4.winner === 0) === /Celebrate with a song/.test(endText)
+    && await page.evaluate(() => !!document.querySelector('.spk[data-say="bedanke"]') && !!document.querySelector('[data-gact="newgame"]') && !document.querySelector('[data-gact="nextround"]') && S.game === null && S.games === 1 && S.fullRounds === 4), 'whole game: the end names the winner and how the game ended, and the finished game is no longer kept ' + JSON.stringify([r4.winner, r4.out, r4.thanked, r4.n]));
   await overflow('whole game, the end');
   ok(refusedInGame >= 1, 'whole game: a forbidden card was tried and refused (' + refusedInGame + ' times)');
+  let extraRounds = 0;
+  {
+    // Three more games, each pushed towards one ending. The totals are set by hand; everything else is played through the page.
+    const C = (s, r) => [s, r];
+    const begin = async (totals, prepared) => {
+      await click('[data-gact="newgame"]'); await click('[data-gnew="1000"]');
+      await page.evaluate((totals, prepared) => { G.gm.total = totals; if (prepared) { G.st = gameDeal(G.gm, dealFixed(prepared[0], prepared[1])); G.token = Math.random(); } renderGame(); }, totals, prepared || null);
+    };
+    const bid = async () => { const g = await getG(); if (g.phase === 'bid') { await click('[data-gsay="' + (g.ask === 'pushed' ? 'eichle' : 'push') + '"]'); await sleep(60); } };
+    const untilOver = async (label, opt, from) => { let r = from || null; for (let k = from ? 1 : 0; k < 14 && !(r && r.s.gm.over); k++) { if (r) await click('[data-gact="nextround"]'); await bid(); r = await playGameRound(label + ', round ' + (k + 1), Object.assign({ quiet: true }, opt)); extraRounds++; } return r; };
+    // 1. You are Vorhand and push; your partner names Schelle. Your two Trumpf are Ober and 8: the convention leads the Ober.
+    await begin([900, 0], [[C('schelle', 'O'), C('schelle', '8'), C('eichle', 'A'), C('eichle', '9'), C('eichle', '7'), C('rose', 'K'), C('rose', 'B'), C('rose', '6'), C('schilte', '7')],
+      [C('schelle', 'U'), C('schelle', '9'), C('schelle', 'A'), C('schelle', '7'), C('eichle', '8'), C('eichle', '6'), C('rose', '7'), C('schilte', '9'), C('schilte', '8')]]);
+    await click('[data-gsay="push"]'); await sleep(60);
+    const gx = await getG();
+    ok(gx.phase === 'named' && gx.st.trump === 'schelle' && gx.st.pushed === true && gx.st.namer === 2 && gx.st.vorhand === 0 && JSON.stringify(await page.evaluate(() => { const a = leadAdvice(G.st); return a && a.want.map(i => G.st.hands[0][i].s + G.st.hands[0][i].r); })) === '["schelleO"]', 'a prepared deal: you pushed, your partner named Schelle, and the convention wants your best Trumpf, the Ober');
+    const ra1 = await playGameRound('game with a prepared lead, round 1', { first: { s: 'schelle', r: 'O' }, early: true, quiet: true }); extraRounds++;
+    ok(ra1.leadMsg && /You led your best Trumpf/.test(ra1.leadMsg) && /class="tag">Tactic/.test(ra1.leadMsg) && !/has more on this/.test(ra1.leadMsg), 'the first card after a push: Vreni names the convention you followed, tagged as a tactic');
+    const ra = await untilOver('game with a prepared lead', {}, ra1);
+    const ta = await page.evaluate(() => document.querySelector('#app').innerText.replace(/\s+/g, ' '));
+    ok(ra.s.gm.over && ra.winner === 0 && (ra.thanked ? ra.nudged === true && ra.n < 9 && /You thanked the moment you had enough, after trick \d: Bedanke/.test(ta) && /The round stopped after trick/.test(ta) : ra.n === 9) && /Idaho has \d+ of 1000 and wins the game/.test(ta) && /Celebrate with a song/.test(ta),
+      'Idaho is 100 short: ' + (ra.thanked ? 'Vreni says when it is enough, you thank after trick ' + ra.n + ', and the game is over on the spot' : 'the ninth trick brings it home') + ', and the song is offered');
+    // 2. Winterthur is 40 short: the lions thank as soon as they have enough, and you never do.
+    await begin([0, 960]);
+    const rb = await untilOver('game the lions end', { thank: false });
+    const tb = await page.evaluate(() => document.querySelector('#app').innerText.replace(/\s+/g, ' '));
+    ok(rb.winner === 1 && rb.out === 1 && /Winterthur has \d+ of 1000 and wins the game/.test(tb) && /Winterthur thanked/.test(tb) && !/Celebrate with a song/.test(tb) && /The potatoes want a rematch/.test(tb), 'when Winterthur has enough it thanks at once, the round stops, and the count says so (after trick ' + rb.n + ')');
+    // 3. Idaho is 40 short and you never thank: the round is played on, and the count says what a real table would have done.
+    await begin([960, 0]);
+    const rc = await untilOver('game you never thank in', { thank: false });
+    const tc = await page.evaluate(() => document.querySelector('#app').innerText.replace(/\s+/g, ' '));
+    ok(rc.s.gm.over && (rc.winner === 0 ? rc.n === 9 && rc.could > 0 && (rc.could < 9 ? /You had enough after trick \d\. At a real table, thank at once/.test(tc) : /The last trick made it/.test(tc)) && /Celebrate with a song/.test(tc) : rc.out === 1), 'you have enough and say nothing: the round is played on, and Vreni says when you could have thanked ' + JSON.stringify([rc.winner, rc.out, rc.n, rc.could]));
+    ok(await page.evaluate(() => S.games === 4 && S.game === null), 'four games are finished, none is left over');
+  }
   await click('[data-gact="newgame"]');
   ok(await page.evaluate(() => G.phase === 'intro' && !document.querySelector('[data-gact="resume"]')), 'whole game: after the end a new game can be chosen');
   await click('[data-gnew="1000"]');
@@ -807,7 +894,7 @@ function expected(q) {
 
   // ---- persistence
   await page.reload({ waitUntil: 'networkidle2' });
-  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn.done').length === 57 && S.rounds === 9 && S.fullRounds === 5 && S.games === 1 && S.game && S.game.round === 1 && S.game.target === 1000), 'progress survives a reload, the running game included');
+  ok(await page.evaluate(extra => document.querySelectorAll('.lesson-btn.done').length === 57 && S.rounds === 9 && S.fullRounds === 5 + extra && S.games === 4 && S.game && S.game.round === 1 && S.game.target === 1000, extraRounds), 'progress survives a reload, the running game included');
   await click('#sound-btn'); await page.reload({ waitUntil: 'networkidle2' });
   ok(await page.evaluate(() => document.getElementById('sound-btn').textContent === 'Sound off'), 'sound setting survives a reload');
 

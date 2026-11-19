@@ -172,7 +172,7 @@ function build(which) {
     const ex = (cards, sure, note) => '<div style="display:flex;gap:10px;align-items:center;margin-bottom:5px"><div class="pcs">' + cards.map((c, i) => pc(c.s, c.r, i < sure ? 'sure' : '', i < sure ? 'w' : '', i < sure ? '' : 'dim')).join('') + '</div><span>' + note + '</span></div>';
     const row = (a, b, c) => '<tr><td>' + a + '</td><td>' + b + '</td><td><b>' + c + '</b></td></tr>';
     return '<div class="page tight">'
-      + head('Cheat sheet 11 · Chapter 5', 'Naming the game', 'Obenabe!', 'Top-down. Count before you say it.')
+      + head('Cheat sheet 11 · Chapter 5', 'Making the call', 'Obenabe!', 'Top-down. Count before you say it.')
       + '<section class="two"><div><h2>Sure tricks in Obenabe</h2>'
       + ex(top.slice(0, 3), 3, '<b>3</b> Ass, König, Ober')
       + ex(top.slice(3, 6), 0, '<b>0</b> the Ass is still out')
@@ -189,7 +189,7 @@ function build(which) {
       + '<div class="rule"><span class="num">3</span><div><b>Fewer, but one strong suit</b>Name it as Trumpf. The rule of thumb is on cheat sheet 5.</div></div>'
       + '<div class="rule"><span class="num">4</span><div><b>Nothing fits</b>Gschobe: your partner chooses.</div></div>'
       + '</div></section>'
-      + '<section><h2>You pushed, your partner named the game. You still play the first card.</h2>'
+      + '<section><h2>You pushed, your partner made the call. You still play the first card.</h2>'
       + '<table><tr><td>Your partner named</td><td>You hold</td><td>You lead</td></tr>'
       + row('A Trumpf suit', 'two or three Trumpf', 'your best Trumpf')
       + row('', 'the Puur and one more', 'the smaller Trumpf')
@@ -209,7 +209,7 @@ function build(which) {
       .concat(SUITS.map(s => [s.name, s.say, s.en + ', one of the four suits']))
       .concat(RANKS.filter(r => r.say).map(r => [r.name, r.say, RANK_NOTE[r.id]]))
       .concat(RANKS.filter(r => r.ch).map(r => [r.ch, r.chSay, r.en + ': how you say the ' + r.id]))
-      .concat([['Ansagen', 'AHN-zah-gen', 'to name the game for a round: a Trumpf suit, Obenabe or Undenufe'], ['Schieben', 'SHEE-ben', 'to push that choice to your partner']]);
+      .concat([['Ansagen', 'AHN-zah-gen', 'to make the call for a round: a Trumpf suit, Obenabe or Undenufe'], ['Schieben', 'SHEE-ben', 'to push that choice to your partner']]);
     const plain = t => t.replace(/[^A-Za-zÄÖÜäöü ]/g, '');
     entries.sort((a, b) => plain(a[0]).localeCompare(plain(b[0]), 'de'));
     if (new Set(entries.map(e => e[0])).size !== entries.length || entries.some(e => !e[0] || !e[1] || !e[2])) throw new Error('the glossary on sheet 10 has a double or an empty entry');
@@ -234,16 +234,16 @@ function build(which) {
     return '<div class="page tight">'
       + head('Cheat sheet 9 · Chapter 4', 'Scoring like a local', 'Heitere Fahne, en Match!', 'Good heavens, a Match!')
       + '<section class="two"><div><h2>One round</h2><table><tr><td>All the cards</td><td>152 points</td></tr><tr><td>Last trick</td><td>5 points</td></tr><tr><td>One round</td><td><b>157 points</b></td></tr><tr><td>Match: all nine tricks</td><td>157 + 100 = <b>257</b></td></tr></table></div>'
-      + '<div><h2>What your team adds up</h2><ol><li>The points in the tricks you won.</li><li>5 if you won the last trick.</li><li>Your Weis, if your team had the highest.</li><li>20 for Stöck.</li></ol><p class="dim">Then multiply by the factor of the game.</p></div></section>'
+      + '<div><h2>What your team adds up</h2><ol><li>The points in the tricks you won.</li><li>5 if you won the last trick.</li><li>Your Weis, if your team had the highest.</li><li>20 for Stöck.</li></ol><p class="dim">Then multiply by the factor of the call.</p></div></section>'
       + '<section><h2>Single, double, triple</h2><div class="cases">'
       + fbox('Eichle, Rose', 'single', 1, sym('eichle') + sym('rose'))
       + fbox('Schelle, Schilte', 'double', 2, sym('schelle') + sym('schilte'))
       + fbox('Obenabe, Undenufe', 'triple', 3, arrow('▼') + arrow('▲'))
       + '</div><p class="dim" style="margin-top:6px">The two suits that start with «Sch» count double. Agree on it before the first card. Beginners can count everything single.</p></section>'
-      + '<section><h2>What goes on the slate: three rounds</h2><table><tr><td>Game</td><td>Your team made</td><td>Factor</td><td>You write</td></tr>'
+      + '<section><h2>What goes on the slate: three rounds</h2><table><tr><td>Call</td><td>Your team made</td><td>Factor</td><td>You write</td></tr>'
       + ex('Rose', '92 points', 1, 92 * FACTOR.rose) + ex('Schilte', '85 points and a Weis of 20', 2, (85 + 20) * FACTOR.schilte) + ex('Undenufe', 'all nine tricks: a Match, 257', 3, 257 * FACTOR.unde)
       + '</table></section>'
-      + '<section class="box"><b>A Match needs all nine tricks.</b> The tricks count, not the points: one empty trick for the other team, and the Match is gone. A Kontermatch, by the team that did not name the game, counts the same.</section>'
+      + '<section class="box"><b>A Match needs all nine tricks.</b> The tricks count, not the points: one empty trick for the other team, and the Match is gone. A Kontermatch, by the team that did not make the call, counts the same.</section>'
       + '<section><h2>The end of the game</h2><ul style="columns:2;column-gap:.3in"><li>Play to <b>1000</b> without factors, to <b>2500</b> with.</li><li>Enough points? Thank them: <b>Bedanke</b>. Also mid-round.</li><li>Thanked too early? Your team loses.</li><li>Both there in trick one? <b>Stöck, Weis, Stich</b>.</li></ul></section>'
       + '<section><h2>Words you will hear</h2><table>' + words + '</table></section>'
       + foot(9) + '</div>';
@@ -255,20 +255,20 @@ function build(which) {
     const mini = (title, win, text) => '<div class="mini"><div class="cards">' + trick.map((c, i) => '<div class="t' + (i === win ? ' win' : '') + '">' + cardSVG(c)
       + '<span>' + (i === win ? '<span class="tag w">wins</span>' : i === 0 ? '<span class="tag">led</span>' : '<span class="tag" style="visibility:hidden">x</span>') + '</span></div>').join('') + '</div><b>' + title + '</b><p>' + text + '</p></div>';
     const wO = trickWinnerM(trick, 'oben'), wU = trickWinnerM(trick, 'unde'), wT = trickWinnerT(trick, 'schelle');
-    if (wO !== 0 || wU !== 1 || wT !== 2) throw new Error('the three-games example on sheet 7 no longer matches the rules');
+    if (wO !== 0 || wU !== 1 || wT !== 2) throw new Error('the three-calls example on sheet 7 no longer matches the rules');
     const words = WORDS4.slice(0, 2).map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
     return '<div class="page tight">'
       + head('Cheat sheet 7 · Chapter 4', 'Obenabe and Undenufe', 'Obenabe oder Undenufe?', 'Top-down or bottom-up?')
-      + '<section class="box"><b>Two games without Trumpf.</b> No suit is the boss, so nobody can trump, and there is no Puur and no Nell. Follow suit if you can. If you cannot, throw any card you like: it cannot win the trick.</section>'
+      + '<section class="box"><b>Two calls without Trumpf.</b> No suit is the boss, so nobody can trump, and there is no Puur and no Nell. Follow suit if you can. If you cannot, throw any card you like: it cannot win the trick.</section>'
       + '<section><h2>Obenabe: top-down</h2><div class="scale"><span>strongest</span><span>weakest</span></div><div class="row">' + rowOf('oben') + '</div></section>'
       + '<section><h2>Undenufe: bottom-up</h2><div class="scale"><span>strongest</span><span>weakest</span></div><div class="row">' + rowOf('unde') + '</div></section>'
-      + '<section><h2>One trick, three games: the König of Rose is led every time</h2><div class="minis">'
+      + '<section><h2>One trick, three calls: the König of Rose is led every time</h2><div class="minis">'
       + mini('Obenabe', wO, 'The highest Rose wins: the König. The 6 of Schelle is the wrong suit.')
       + mini('Undenufe', wU, 'The lowest Rose wins: the 7. The 6 of Schelle is still the wrong suit.')
       + mini('Schelle is Trumpf', wT, 'Now the 6 of Schelle is a Trumpf, and the smallest Trumpf beats everything.')
       + '</div></section>'
-      + '<section class="two"><div><h2>What changes in the points</h2><table><tr><td>Every 8</td><td>8 points, in both games</td></tr><tr><td>Undenufe</td><td>the 6 is worth 11, the Ass nothing</td></tr><tr><td>Puur and Nell</td><td>do not exist: Under 2, 9 nothing</td></tr><tr><td>One round</td><td><b>157 points</b>, as always</td></tr></table></div>'
-      + '<div><h2>Words you will hear</h2><table>' + words + '</table><p class="dim" style="margin-top:6px">Vorhand may name either game instead of a Trumpf suit. So may her partner after a push.</p></div></section>'
+      + '<section class="two"><div><h2>What changes in the points</h2><table><tr><td>Every 8</td><td>8 points, in both calls</td></tr><tr><td>Undenufe</td><td>the 6 is worth 11, the Ass nothing</td></tr><tr><td>Puur and Nell</td><td>do not exist: Under 2, 9 nothing</td></tr><tr><td>One round</td><td><b>157 points</b>, as always</td></tr></table></div>'
+      + '<div><h2>Words you will hear</h2><table>' + words + '</table><p class="dim" style="margin-top:6px">Vorhand may make either call instead of naming a Trumpf suit. So may her partner after a push.</p></div></section>'
       + foot(7) + '</div>';
   }
   if (which === 8) {
@@ -414,7 +414,7 @@ const SHEETS = [
   [8, 'jass-cheat-sheet-8-weis-and-stoeck.pdf', 'Jass cheat sheet 8: Weis and Stöck'],
   [9, 'jass-cheat-sheet-9-scoring.pdf', 'Jass cheat sheet 9: Scoring like a local'],
   [10, 'jass-cheat-sheet-10-glossary.pdf', 'Jass cheat sheet 10: Jass glossary'],
-  [11, 'jass-cheat-sheet-11-naming-the-game.pdf', 'Jass cheat sheet 11: Naming the game'],
+  [11, 'jass-cheat-sheet-11-making-the-call.pdf', 'Jass cheat sheet 11: Making the call'],
 ];
 
 (async () => {

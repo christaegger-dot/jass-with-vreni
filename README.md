@@ -31,14 +31,23 @@ three simple computer players). The round is played with the four Trumpf suits o
 no Obenabe or Undenufe, everything counted once. Chapter 3 (playing well) teaches Bock, counting Trumpf
 and four proven tactics and signals of team play: Trumpf uszieh, Schmiere, Verwerfe, Aazieh. The app keeps
 three things apart: rules (a must), tactics (often useful) and signals between partners (tables differ).
-Chapter 4 (the full game) has three stages: Obenabe and Undenufe, Weis and Stöck, and scoring like a local
+Chapter 4 (the rest of the rules) has three stages: Obenabe and Undenufe, Weis and Stöck, and scoring like a local
 (single, double, triple, Match, and how a game ends). With that every rule of the game is covered.
-Chapter 5 (at the table) starts with stage 13: counting sure tricks, when to name Obenabe or Undenufe, and the
+Chapter 5 (at the table) has stage 13, making the call: counting sure tricks, when to name Obenabe or Undenufe, and the
 first card after a push. These are rules of thumb and conventions, and the app labels them as such.
-Stage 14 is the whole game: all six games, Weis, Stöck and the slate, with the deal moving on after every
-round, played to 1000 (everything single) or to 2500 (with the factors). Weis and Stöck are announced
-automatically, a round is always played to the end, and an unfinished game is saved in the browser.
-The course now has 14 stages and 57 lessons.
+Stage 14 is the whole game: all six calls, Weis, Stöck and the slate, with the deal moving on after every
+round, played to 1000 (everything single) or to 2500 (with the factors). You announce your own Weis, Stöck are
+called for you, and a team thanks the moment it has enough, which ends the game in the middle of a round.
+An unfinished game is saved in the browser.
+
+Two words are kept apart: a «call» is what Vorhand names (a Trumpf suit, Obenabe or Undenufe), a «game» is the
+whole thing to 1000 or 2500, and a «round» is nine tricks.
+
+The stages open one after the other, with three exceptions: chapter 4 opens after the first round (stage 7), next to
+chapter 3, so nobody has to pass a check on tactics to learn a rule; stage 13 needs chapters 3 and 4; the whole game
+needs chapter 4 only.
+
+The course has 14 stages, 57 lessons and 360 exercises.
 Progress is stored in the learner's browser only.
 
 ## Running it locally

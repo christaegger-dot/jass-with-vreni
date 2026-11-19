@@ -173,6 +173,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .info{align-self:stretch;margin:0;background:rgba(0,0,0,.22);border-radius:8px;padding:7px 10px;font-size:15px}
 .rn .badge{width:13px;height:13px}
 .dedication{margin:-4px 0 2px;color:var(--gold);font-size:26px;line-height:1.1}
+.atable{gap:4px}.atable .dedication{margin:0}.atable .matesnote{margin:4px 0 0}
 .mates{display:flex;align-items:flex-end;justify-content:center;gap:4px;margin:10px 0 0}
 .mates .vreni{width:88px;height:88px}
 .mates .fan{display:flex;align-items:flex-end;padding-bottom:7px}
@@ -1930,6 +1931,7 @@ function renderHome(){
     +(next?'<div class="actions goon"><button class="primary" type="button" id="continue-btn" data-stage="'+next[0]+'" data-lesson="'+next[1]+'">'+(Object.keys(S.best).length?'Continue':'Start')+'</button>'
       +'<span class="small dim">Stage '+(next[0]+1)+' · '+STAGES[next[0]].lessons[next[1]].title+'</span></div>':'')
     +(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
+    +tableHTML()
     +'<div class="path">'+path
     +'<p class="later"><b>That is the whole course.</b> Come back whenever you like: the round in Stage 7 and the game in Stage 14 deal new cards every time.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
@@ -2208,8 +2210,13 @@ function scoreHTML(score){
   return '<div class="rscore"><span class="side" aria-label="Your team, Idaho: '+score[0]+' points">'+badgeSVG(0)+'<span>Idaho <b>'+score[0]+'</b><i>your team</i></span></span>'
     +'<span class="side r" aria-label="Their team, Winterthur: '+score[1]+' points"><span>Winterthur <b>'+score[1]+'</b><i>their team</i></span>'+badgeSVG(1)+'</span></div>';
 }
+// The dedication and the two at the table. On the home page it sits right under Vreni's greeting, before the course.
+function tableHTML(){
+  return '<div class="slate breaks atable"><p class="chalk dedication">For Heidi</p>'+matesHTML()
+    +'<p class="chalk matesnote">Vreni kept a chair free for Idaho. It did not stay free for long.</p></div>';
+}
 function placesHTML(){
-  return '<div class="slate breaks"><h2>Two places, one table</h2><p class="chalk dedication">For Heidi</p>'+matesHTML()+'<p class="chalk matesnote">Vreni kept a chair free for Idaho. It did not stay free for long.</p><div class="places">'
+  return '<div class="slate breaks"><h2>Two places, one table</h2><div class="places">'
     +'<div class="place">'+badgeSVG(1)+'<div><b>Winterthur, Switzerland</b><p class="small">This is where Vreni’s table stands. The town carries two red lions in its coat of arms, one on each side of a slanting bar. Vreni says anyone can see what they are: two partners at a Jass table.</p><a href="https://heraldry-wiki.com/wiki/Winterthur">See the real coat of arms</a></div></div>'
     +'<div class="place">'+badgeSVG(0)+'<div><b>Idaho, USA</b><p class="small">This is where the cards are headed. Idaho’s Great Seal is the only state seal in America designed by a woman, Emma Edwards Green, in 1891. Its motto is «Esto perpetua», let it be perpetual. Vreni says the same about a good Jass evening.</p><a href="https://sos.idaho.gov/StateSeal/">See the real seal</a></div></div>'
     +'</div><p class="dim small">The potato, the lion and the man in the straw hat are our own little drawings. In the round at the end of Chapter 2 you play for Idaho. Winterthur has home advantage, Idaho has the potatoes. Somebody will have to make Rösti.</p></div>';

@@ -9,7 +9,7 @@ Live: https://jass-with-vreni.netlify.app
 
 - `public/index.html` is the whole app: one page, no build step.
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
-- `public/cheatsheets/` holds the five printable cheat sheets as PDF, one US Letter page each.
+- `public/cheatsheets/` holds the six printable cheat sheets as PDF, one US Letter page each.
 - `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
 - `tests/logic-test.js` checks the rules and the question generators, and plays 3000 whole rounds against a second, independent copy of the rules.
 - `tests/browser-test.js` plays through every lesson and several whole rounds in a real browser.
@@ -28,8 +28,9 @@ Live: https://jass-with-vreni.netlify.app
 Chapter 1 (the cards, winning a trick, counting points) and chapter 2 (Trumpf: Puur and Nell, the
 points, which cards may be played, Ansagen or Schieben, and a first whole round of nine tricks against
 three simple computer players). The round is played with the four Trumpf suits only: no Weis, no Stöck,
-no Obenabe or Undenufe, everything counted once. Still to come: chapters 3 (playing well) and 4 (the
-full game).
+no Obenabe or Undenufe, everything counted once. Chapter 3 (playing well) teaches Bock, counting Trumpf
+and four habits of team play: Trumpf uszieh, Schmiere, Verwerfe, Aazieh. These are conventions, and the
+app says so. Still to come: chapter 4 (the full game).
 Progress is stored in the learner's browser only.
 
 ## Running it locally

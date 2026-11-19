@@ -97,6 +97,14 @@ li{margin-bottom:5px}
 .pat .cards svg{width:.44in;height:auto;display:block;border-radius:5px}
 .pat .plus{font-family:'Lilita One',sans-serif;font-size:15pt;color:#1f5a3d;padding:0 3px}
 .pat p{font-size:9.2pt;line-height:1.3;margin:0}
+.pc{display:flex;flex-direction:column;align-items:center;gap:3px}
+.pc svg{width:.41in;height:auto;display:block;border-radius:5px}
+.page.tight{gap:.11in}
+.pc.dim svg{opacity:.38}
+.pc.big svg{width:.6in}
+.pcs{display:flex;gap:6px;align-items:flex-start}
+.pcs .plus{font-family:'Lilita One',sans-serif;font-size:13pt;color:#1f5a3d;padding:14px 2px 0}
+.sum{font-family:'Lilita One',sans-serif;font-size:15pt;color:#1f5a3d;margin:6px 0 4px}
 footer{margin-top:auto;display:flex;justify-content:space-between;gap:20px;border-top:1.2px solid #cfc9b8;padding-top:7px;font-size:8pt;color:#6b665a}
 `;
 
@@ -151,6 +159,31 @@ function build(which) {
       + '<section class="two"><div><h2>The points in one round</h2><table><tr><td>Trumpf suit</td><td>20 + 14 + 11 + 10 + 4 + 3 = 62</td></tr><tr><td>Three other suits</td><td>3 × 30 = 90</td></tr><tr><td>Last trick</td><td>5 for whoever wins it</td></tr><tr><td>One whole round</td><td><b>157 points</b>, every time</td></tr></table></div>'
       + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
       + foot(3) + '</div>';
+  }
+  if (which === 6) {
+    const pc = (s, r, tag, cls, extra) => '<div class="pc' + (extra ? ' ' + extra : '') + '">' + cardSVG({ s, r }) + '<span class="tag ' + (cls || '') + '"' + (tag ? '' : ' style="visibility:hidden"') + '>' + (tag || 'x') + '</span></div>';
+    // every example is checked against the app's own rules before it is printed
+    if (!isBock({ s: 'rose', r: 'K' }, [{ s: 'rose', r: 'A' }], null) || isBock({ s: 'rose', r: 'O' }, [{ s: 'rose', r: 'A' }], null)) throw new Error('the Bock example on sheet 6 is wrong');
+    if (!isBock({ s: 'schilte', r: '9' }, [{ s: 'schilte', r: 'U' }], 'schilte')) throw new Error('the Trumpf example on sheet 6 is wrong');
+    const T = 'schilte', played = ['U', 'K', '7'], mine = ['9', '8'];
+    const habit = (n, title, en, cards, text) => '<div class="pat"><h3><span class="num">' + n + '</span>' + title + ' <span style="font-family:Atkinson Hyperlegible,sans-serif;font-size:9pt;color:#6b665a">' + en + '</span></h3><div class="pcs">' + cards + '</div><p>' + text + '</p></div>';
+    const words = WORDS3.map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page tight">'
+      + head('Cheat sheet 6 · Chapter 3', 'Playing well', 'Zerscht dänke, dänn spile.', 'Think first, then play.')
+      + '<section class="two"><div><h2>Bock: the highest card still out</h2><div class="pcs">' + pc('rose', 'A', 'played', 'x', 'dim') + pc('rose', 'K', 'Bock', 'w') + pc('rose', 'O') + pc('rose', 'U') + '</div>'
+      + '<p style="margin-top:6px">The Ass is gone, so the König is the highest Rose left. A Bock wins its trick, <b>unless somebody trumps it</b>. In the Trumpf suit the order is Puur, Nell, Ass: when the Puur is gone, the Nell is the highest Trumpf.</p></div>'
+      + '<div><h2>Count the Trumpf</h2><p>There are nine. Take away the ones that have been played and the ones in your hand.</p>'
+      + '<div class="pcs">' + played.map(r => pc(T, r, 'played', 'x', 'dim')).join('') + '<span class="plus">+</span>' + mine.map(r => pc(T, r, 'yours', '', '')).join('') + '</div>'
+      + '<div class="sum">9 − ' + played.length + ' − ' + mine.length + ' = ' + (9 - played.length - mine.length) + ' still out</div></div></section>'
+      + '<section><h2>Four habits of good players</h2><div class="pats">'
+      + habit(1, 'Trumpf uszieh', 'draw the Trumpf', pc('eichle', 'U', 'lead', 'w') + pc('eichle', 'K') + pc('eichle', '8') + pc('eichle', '6') + '<span class="plus">+</span>' + pc('rose', 'A', 'safe later', ''), 'You named Trumpf: lead it, the Puur first, until the other team has none. Then stop, and play your Bock.')
+      + habit(2, 'Schmiere', 'feed your partner', pc('schelle', 'A', 'partner wins', 'w') + '<span class="plus">←</span>' + pc('schelle', 'B', 'give this', '') + pc('schelle', '7', 'not this', 'x', 'dim'), 'Your partner is sure to win the trick: put your points on it. The other team wins it: give your smallest card.')
+      + habit(3, 'Verwerfe', 'throw away', pc('eichle', '8', 'throw', 'w') + pc('eichle', '6', 'or this', 'w') + '<span class="plus">&nbsp;</span>' + pc('rose', 'A', 'keep', 'x') + pc('rose', 'K', 'keep', 'x'), 'Cannot follow, cannot trump: throw a small card from your weak suit. Your partner reads it: do not lead this suit to me.')
+      + habit(4, 'Aazieh', 'pull the Ass out', pc('schilte', 'K', 'Bock soon', '') + pc('schilte', 'O') + pc('schilte', '6', 'lead', 'w'), 'König and Ober, but no Ass: lead the small card of that suit. The Ass comes out, and your König is Bock.')
+      + '</div></section>'
+      + '<section class="box"><b>Before you play a card, ask:</b> Who is winning this trick right now? Who still plays after me? How many Trumpf are still out? <b>And remember:</b> these are habits, not rules. Every table has its own, but your partner counts on them.</section>'
+      + '<section><h2>Words you will hear</h2><table>' + words + '</table></section>'
+      + foot(6) + '</div>';
   }
   if (which === 5) {
     const H = str => str.split(' ').map(x => { const a = x.split(':'); return { s: { e: 'eichle', r: 'rose', s: 'schelle', t: 'schilte' }[a[0]], r: a[1] }; });
@@ -238,6 +271,7 @@ const SHEETS = [
   [3, 'jass-cheat-sheet-3-trumpf.pdf', 'Jass cheat sheet 3: Trumpf'],
   [4, 'jass-cheat-sheet-4-what-may-i-play.pdf', 'Jass cheat sheet 4: What may I play?'],
   [5, 'jass-cheat-sheet-5-ansagen-or-schieben.pdf', 'Jass cheat sheet 5: Ansagen or Schieben?'],
+  [6, 'jass-cheat-sheet-6-playing-well.pdf', 'Jass cheat sheet 6: Playing well'],
 ];
 
 (async () => {

@@ -1,7 +1,7 @@
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const logic=html.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
-const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT};')();
+const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull};')();
 let fail=0,count=0;const ok=(c,m)=>{count++;if(!c){fail++;console.log('FAIL',m)}};
 const C=(s,r)=>({s,r});
 // fixed cases
@@ -181,5 +181,48 @@ console.log('rounds: team of seat 0 took more tricks in '+ownWins+' of 3000, Mat
 {let good=0;for(let k=0;k<200;k++){const st=api.newRound(api.dealRound(0),0);st.trump='schelle';for(let n=0;n<9;n++){for(let j=0;j<4;j++)api.roundPlay(st,st.turn,api.botMove(st,st.turn));api.roundCloseTrick(st)}if(st.score[0]>st.score[1])good++}
  console.log('first deal, Schelle named, played by the app itself: your team is ahead in '+good+' of 200');ok(good>=100,'first deal is a fair start ('+good+' of 200)')}
 for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
-ok(api.STAGES.length===7&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true,'seven stages, the last one is the round');
+ok(api.STAGES.length===9&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3,'nine stages: the round is stage 7, chapter 3 has stages 8 and 9');
+
+// ------------------------------------------------------------ chapter 3: Bock, counting, team play
+// Bock, written out independently: every stronger card of the same suit has been played.
+const refBock=(c,gone,t)=>{const o=c.s===t?TO:PO;return o.slice(0,o.indexOf(c.r)).split('').every(r=>gone.some(g=>g.s===c.s&&g.r===r))};
+const key=c=>c.s+c.r,inHand=(h,s,r)=>h.some(c=>c.s===s&&c.r===r);
+ok(api.isBock(C('rose','K'),[C('rose','A')],null)&&!api.isBock(C('rose','O'),[C('rose','A')],null)&&api.isBock(C('rose','A'),[],null),'Bock: König after the Ass is gone, an Ass always');
+ok(api.isBock(C('rose','9'),[C('rose','U')],'rose')&&!api.isBock(C('rose','A'),[C('rose','U')],'rose')&&!api.isBock(C('rose','9'),[C('rose','A')],null),'highest Trumpf: Nell after the Puur; a plain 9 is far from Bock');
+ok(api.isBock(C('rose','U'),[C('rose','A'),C('rose','K'),C('rose','O')],null)&&!api.isBock(C('rose','B'),[C('rose','A'),C('rose','K'),C('rose','O')],null),'plain suit: the Under ranks above the Banner');
+const scnSeen={};
+for(let i=0;i<3000;i++){
+  for(const tr of [false,true]){
+    const q=api.qBock(tr),a=q.cards[q.answer],o=tr?TO:PO,all=q.cards.concat(q.gone);
+    ok(q.cards.length===4&&uniq(all)&&all.every(c=>c.s===q.suit)&&(tr?q.trump===q.suit:!q.trump)&&refBock(a,q.gone,q.trump||null)&&q.cards.every(c=>c===a||o.indexOf(c.r)>o.indexOf(a.r))&&q.explain.length>30,'bock '+(tr?'Trumpf':'plain'));
+  }
+  let q=api.qMyBock();
+  const bocks=q.hand.map((c,k)=>refBock(c,q.gone,null)?k:-1).filter(k=>k>=0);
+  ok(q.hand.length===3&&new Set(q.hand.map(c=>c.s)).size===3&&uniq(q.hand.concat(q.gone))&&q.gone.length>=1&&q.gone.length<=5&&bocks.length===1&&J(q.answer)===J(bocks)&&q.single===true,'mybock: exactly one card of the hand is Bock');
+  q=api.qTrumpCount();
+  ok(uniq(q.gone.concat(q.mine))&&q.gone.concat(q.mine).every(c=>c.s===q.trump)&&q.gone.length>=1&&q.answer===9-q.gone.length-q.mine.length&&q.answer>=1&&q.options.length===4&&new Set(q.options.map(x=>x.id)).size===4&&q.options.some(x=>x.id===q.answer)&&q.explain.includes('= '+q.answer+'.'),'trumpcount');
+  q=api.qRead();ok(q.cards.length===1&&q.answer===q.cards[0].s&&'678'.includes(q.cards[0].r)&&q.options.length===4,'read your partner');
+  for(const make of [api.qDraw,api.qCash,()=>api.qSmear(true),()=>api.qSmear(false),api.qDiscard,api.qPull]){
+    q=make();scnSeen[q.scn]=(scnSeen[q.scn]||0)+1;
+    const h=q.hand,t=q.trump,tk=q.cards,legal=tk.length?refLegal(h,tk,t):h.map((_,k)=>k),good=q.answer,pts=k=>refPts(h[k],t);
+    ok(q.type==='best'&&q.single===true&&uniq(h.concat(tk))&&J(q.legal)===J(legal)&&good.length>=1&&good.every(k=>legal.includes(k))&&(tk.length?q.winning===refWinner(tk,t)&&q.led===tk[0].s&&q.seats.length===3:q.winning===-1)&&q.hint.length>20&&q.explain.length>40,'best '+q.scn+': legal cards and the trick winner agree with the reference');
+    if(q.scn==='draw')ok(h.length===9&&tk.length===0&&h.filter(c=>c.s===t).length===4&&good.length===1&&h[good[0]].s===t&&h[good[0]].r==='U'&&h.some(c=>c.s!==t&&c.r==='A'),'draw: four Trumpf with the Puur and an Ass to protect; the Puur is led');
+    if(q.scn==='cash')ok(h.length===5&&tk.length===0&&/no Trumpf left/.test(q.info)&&J(good)===J(h.map((c,k)=>c.s!==t&&c.r==='A'?k:-1).filter(k=>k>=0))&&good.length===1&&h.some(c=>c.s===t)&&h.every((c,k)=>good.includes(k)||refPts(c,t)<11),'cash: the plain Ass is the only 11-point card and nobody can trump it');
+    if(q.scn==='smearA'||q.scn==='smearB'){
+      const X=tk[0].s,A=q.scn==='smearA';
+      ok(h.length===4&&tk.length===3&&X!==t&&tk.every(c=>c.s===X)&&!h.some(c=>c.s===t)&&legal.length===2&&legal.every(k=>h[k].s===X)&&(refWinner(tk,t)===1)===A&&tk[refWinner(tk,t)].r==='A'&&good.length===1,'smear: you are last, two cards of the suit, no Trumpf anywhere, the Ass wins');
+      const other=legal.find(k=>k!==good[0]);
+      ok(A?pts(good[0])>pts(other)&&pts(good[0])>=3:pts(good[0])===0&&pts(other)>=3,'smear: '+(A?'the valuable card goes to the partner':'the worthless card goes to the others'));
+    }
+    if(q.scn==='discard'){
+      const Ld=tk[0].s,w=refWinner(tk,t),Y=h[good[0]].s;
+      ok(h.length===5&&tk.length===3&&Ld!==t&&w!==1&&!h.some(c=>c.s===Ld||c.s===t)&&legal.length===5&&good.length===2&&good.every(k=>h[k].s===Y&&pts(k)===0)&&h.filter(c=>c.s!==Y).length===3&&h.filter(c=>c.s!==Y).every(c=>refPts(c,t)>=4)&&new Set(h.filter(c=>c.s!==Y).map(c=>c.s)).size===1,'discard: the trick is lost, the two worthless cards of the weak suit are the ones to throw');
+    }
+    if(q.scn==='pull'){
+      const c=h[good[0]];
+      ok(h.length===5&&tk.length===0&&good.length===1&&!h.some(x=>x.s===t)&&'876'.includes(c.r)&&inHand(h,c.s,'K')&&inHand(h,c.s,'O')&&!inHand(h,c.s,'A')&&h.filter(x=>x.s===c.s).length===3&&h.filter(x=>x.s!==c.s).every(x=>'U98'.includes(x.r))&&q.info.includes('Ass of'),'pull: the low card under König and Ober is led');
+    }
+  }
+}
+for(const k of ['draw','cash','smearA','smearB','discard','pull'])ok(scnSeen[k]===3000,'scenario occurs: '+k);
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

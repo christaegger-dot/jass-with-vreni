@@ -67,6 +67,24 @@ li{margin-bottom:5px}
 .tag{display:inline-block;white-space:nowrap;font-size:7.4pt;font-weight:700;letter-spacing:.4px;text-transform:uppercase;border-radius:4px;padding:1px 6px;background:#e6b43c}
 .tag.w{background:#1f5a3d;color:#fff}
 .tag.x{background:#e9e4d6;color:#6b665a}
+.tag.no{background:#d1341f;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#e6b43c;border-radius:999px;padding:2px 11px 2px 9px;font-size:9.5pt;font-weight:700}
+.chip svg{width:17px;height:17px}
+.minis{display:grid;grid-template-columns:repeat(3,1fr);gap:.22in}
+.mini .cards{display:flex;gap:5px;margin-bottom:5px}
+.mini .t{width:auto;flex:1}
+.mini b{font-size:10pt}
+.mini p{font-size:9pt;line-height:1.3;margin:2px 0 0}
+.cases{display:grid;grid-template-columns:repeat(3,1fr);gap:.16in}
+.case{border:1.5px solid #1f5a3d;border-radius:9px;padding:9px 11px 8px}
+.case h3{display:flex;align-items:center;gap:8px;font-family:'Lilita One',sans-serif;font-weight:400;font-size:12.5pt;line-height:1.1;margin:0 0 6px}
+.case .num{width:26px;height:26px;font-size:13pt}
+.case ul{padding-left:15px;font-size:9.4pt;line-height:1.32}
+.case li{margin-bottom:4px}
+.work{display:grid;grid-template-columns:auto 1fr;gap:.4in;align-items:start}
+.work h4{margin:0 0 5px;font-size:8pt;letter-spacing:1.2px;text-transform:uppercase;color:#6b665a}
+.work .cards{display:flex;gap:10px}
+.work .t{width:.98in}
 footer{margin-top:auto;display:flex;justify-content:space-between;gap:20px;border-top:1.2px solid #cfc9b8;padding-top:7px;font-size:8pt;color:#6b665a}
 `;
 
@@ -100,6 +118,52 @@ function build(which) {
       + foot(1) + '</div>';
   }
 
+  if (which === 3) {
+    const T = 'schilte';
+    const row = TRUMP_ORDER.map(r => { const c = { s: T, r }, pts = pointsT(c, T); return '<div class="c">' + cardOf(T, r) + '<b>' + tShort(c, T) + '</b><span class="pts' + (pts ? '' : ' zero') + '">' + pts + '</span></div>'; }).join('');
+    const mini = (cards, title, text) => {
+      const cs = cards.map(c => ({ s: c[0], r: c[1] })), win = trickWinnerT(cs, T);
+      return '<div class="mini"><div class="cards">' + cs.map((c, i) => '<div class="t' + (i === win ? ' win' : '') + '">' + cardSVG(c)
+        + '<span>' + (i === win ? '<span class="tag w">wins</span>' : i === 0 ? '<span class="tag">led</span>' : '<span class="tag" style="visibility:hidden">x</span>') + '</span></div>').join('') + '</div><b>' + title + '</b><p>' + text + '</p></div>';
+    };
+    const words = WORDS2.slice(0, 4).map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page">'
+      + head('Cheat sheet 3 · Chapter 2', 'Trumpf', 'Puur, Nell, Ass. Say it until you dream it.')
+      + '<section><h2>The Trumpf suit, from strongest to weakest, with the points</h2><div class="scale"><span>strongest</span><span>weakest</span></div><div class="row">' + row + '</div></section>'
+      + '<section class="box"><b>Two cards change their life.</b> In the Trumpf suit the Under becomes the <b>Puur</b>: the strongest card in the game, worth 20 points instead of 2. The 9 becomes the <b>Nell</b>: second strongest, worth 14 points instead of nothing. In the other three suits everything stays as it was.</section>'
+      + '<section><h2>Trumpf beats everything</h2><p style="margin-bottom:8px">In these three tricks <span class="chip">' + symSVG(T) + suitOf(T).name + '</span> is Trumpf. The first card of each trick was led.</p><div class="minis">'
+      + mini([['rose', 'A'], ['rose', 'K'], ['schilte', '6'], ['eichle', 'B']], 'The smallest Trumpf is enough', 'Any Trumpf beats any card of the other suits. Even the 6 beats an Ass.')
+      + mini([['rose', 'O'], ['schilte', 'A'], ['schilte', '9'], ['rose', 'B']], 'Two Trumpf: the higher one wins', 'The Nell beats the Ass. Remember the order: Puur, Nell, Ass.')
+      + mini([['eichle', 'K'], ['eichle', '8'], ['rose', 'A'], ['schelle', 'U']], 'No Trumpf: as before', 'The highest card of the suit led wins. That Under is no Puur, because Schelle is not Trumpf.')
+      + '</div></section>'
+      + '<section class="two"><div><h2>The points in one round</h2><table><tr><td>Trumpf suit</td><td>20 + 14 + 11 + 10 + 4 + 3 = 62</td></tr><tr><td>Three other suits</td><td>3 × 30 = 90</td></tr><tr><td>Last trick</td><td>5 for whoever wins it</td></tr><tr><td>One whole round</td><td><b>157 points</b>, every time</td></tr></table></div>'
+      + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
+      + foot(3) + '</div>';
+  }
+  if (which === 4) {
+    const T = 'schelle';
+    const trick = [{ s: 'rose', r: '8' }, { s: 'schelle', r: 'K' }];
+    const hand = [{ s: 'rose', r: 'O' }, { s: 'schelle', r: 'A' }, { s: 'schelle', r: '7' }, { s: 'eichle', r: '6' }];
+    const why = ['follows suit', 'higher than the König', 'lower than the König', 'you hold Rose, so no other suit'];
+    const legal = legalT(hand, trick, T);
+    if (JSON.stringify(legal) !== '[0,1]') throw new Error('worked example no longer matches the rules: ' + JSON.stringify(legal));
+    const kase = (n, title, items) => '<div class="case"><h3><span class="num">' + n + '</span>' + title + '</h3><ul>' + items.map(i => '<li>' + i + '</li>').join('') + '</ul></div>';
+    const words = [WORDS2[3], WORDS2[4], WORDS[3]].map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page">'
+      + head('Cheat sheet 4 · Chapter 2', 'What may I play?', 'Untertrumpfe? Nid a mim Tisch!', 'Undertrumping? Not at my table!')
+      + '<section><h2>Three situations, three rules</h2><div class="cases">'
+      + kase(1, 'A plain suit is led', ['<b>You hold that suit:</b> follow suit, or play a Trumpf instead. Your choice.', '<b>You hold none of it:</b> play any card you like.', 'A card of a third suit is never allowed while you can follow.'])
+      + kase(2, 'Trumpf is led', ['<b>You hold Trumpf:</b> you must play Trumpf. Any one will do, higher or lower.', '<b>Your only Trumpf is the Puur:</b> play any card. Nobody can force him out.', '<b>You hold no Trumpf:</b> play any card you like.'])
+      + kase(3, 'A plain suit is led, and somebody has trumped', ['<b>Never play a lower Trumpf</b> than the one lying in the trick.', 'A higher Trumpf is fine. So is following suit.', 'Cannot follow suit? Throw any other card away.', '<b>Only exception:</b> you hold nothing but Trumpf.'])
+      + '</div></section>'
+      + '<section><h2>One hand, worked out</h2><p style="margin-bottom:8px"><span class="chip">' + symSVG(T) + suitOf(T).name + '</span> is Trumpf. Rose was led, and the next player trumped with the König. Now it is your turn.</p><div class="work">'
+      + '<div><h4>On the table</h4><div class="cards">' + trick.map((c, i) => '<div class="t">' + cardSVG(c) + '<span><span class="tag' + (i ? ' x' : '') + '">' + (i ? 'trumped' : 'led') + '</span><br>' + tName(c, T) + '</span></div>').join('') + '</div></div>'
+      + '<div><h4>Your hand</h4><div class="cards">' + hand.map((c, i) => '<div class="t' + (legal.includes(i) ? ' win' : '') + '">' + cardSVG(c) + '<span><span class="tag ' + (legal.includes(i) ? 'w' : 'no') + '">' + (legal.includes(i) ? 'allowed' : 'not allowed') + '</span><br>' + why[i] + '</span></div>').join('') + '</div></div>'
+      + '</div></section>'
+      + '<section class="two"><div><h2>Words you will hear</h2><table>' + words + '</table></div>'
+      + '<div><h2>If you remember one thing</h2><p>When a plain suit is led, following suit is always fine. A Trumpf is fine too, unless somebody has already trumped higher than you can.</p></div></section>'
+      + foot(4) + '</div>';
+  }
   const row = RANKS.map(r => '<div class="c">' + cardOf('schelle', r.id) + '<b>' + (r.say ? r.name : r.id) + '</b><span class="pts' + (r.pts ? '' : ' zero') + '">' + r.pts + '</span></div>').join('');
   const trick = [['rose', '8', 'led', ''], ['schelle', 'A', 'wrong suit', 'x'], ['rose', 'O', 'wins', 'w'], ['rose', 'B', '', '']];
   const tr = trick.map(t => '<div class="t' + (t[3] === 'w' ? ' win' : '') + '">' + cardOf(t[0], t[1])
@@ -117,13 +181,15 @@ function build(which) {
     + '<p><b>How many points?</b> 0 + 11 + 3 + 10 = <b>24</b>. All of them go to the winner.</p>'
     + '<p class="dim">Played counter-clockwise: after you, the player on your right is next.</p></div></div></section>'
     + '<section class="two"><div><h2>Quick sums</h2><table><tr><td>One whole suit</td><td>11 + 4 + 3 + 2 + 10 = 30 points</td></tr><tr><td>All four suits</td><td>120 points</td></tr><tr><td>9, 8, 7 and 6</td><td>0 points, but they still win tricks</td></tr></table></div>'
-    + '<div><h2>What comes next</h2><p>Trumpf turns one suit into the boss and changes both the order and the points. That is Chapter 2. This sheet will grow with it.</p></div></section>'
+    + '<div><h2>What comes next</h2><p>Trumpf turns one suit into the boss and changes both the order and the points. That is Chapter 2, and it has its own cheat sheets.</p></div></section>'
     + foot(2) + '</div>';
 }
 
 const SHEETS = [
   [1, 'jass-cheat-sheet-1-the-cards.pdf', 'Jass cheat sheet 1: The cards'],
   [2, 'jass-cheat-sheet-2-rank-and-points.pdf', 'Jass cheat sheet 2: Rank and points'],
+  [3, 'jass-cheat-sheet-3-trumpf.pdf', 'Jass cheat sheet 3: Trumpf'],
+  [4, 'jass-cheat-sheet-4-what-may-i-play.pdf', 'Jass cheat sheet 4: What may I play?'],
 ];
 
 (async () => {

@@ -9,7 +9,7 @@ Live: https://jass-with-vreni.netlify.app
 
 - `public/index.html` is the whole app: one page, no build step.
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
-- `public/cheatsheets/` holds the printable cheat sheets as PDF, one US Letter page each.
+- `public/cheatsheets/` holds the four printable cheat sheets as PDF, one US Letter page each.
 - `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
 - `tests/logic-test.js` checks the rules and the question generators.
 - `tests/browser-test.js` plays through every lesson in a real browser.
@@ -23,7 +23,9 @@ Live: https://jass-with-vreni.netlify.app
 
 ## Status
 
-Chapter 1 (the cards, winning a trick, counting points). Chapters 2 to 4 are planned.
+Chapter 1 (the cards, winning a trick, counting points) and the first two stages of chapter 2
+(Trumpf: Puur and Nell, the points, and which cards may be played). Still to come: Ansagen or
+Schieben, a first full round, and chapters 3 and 4.
 Progress is stored in the learner's browser only.
 
 ## Running it locally

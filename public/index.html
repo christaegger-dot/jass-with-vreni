@@ -104,7 +104,11 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .row-label{font-size:13.5px;text-transform:uppercase;letter-spacing:1.2px;color:#cfe3d5;align-self:flex-start}
 .cards{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 .cardbox{display:flex;flex-direction:column;align-items:center;gap:3px}
-.card{width:74px;padding:0;border:0;background:none;border-radius:8px;display:block;transition:transform .12s}
+.card{width:74px;padding:0;border:0;background:none;border-radius:8px;display:block;transition:transform .12s;position:relative}
+.card.tm::before{content:"T";position:absolute;top:-7px;right:-7px;z-index:1;width:21px;height:21px;border-radius:50%;background:var(--red);color:#fff;font-size:12px;font-weight:700;line-height:18px;text-align:center;border:1.5px solid var(--paper)}
+.trumpchip{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;background:var(--gold);color:var(--ink);border-radius:999px;padding:4px 12px 4px 10px;font-size:14.5px}
+.trumpchip span{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;font-weight:700}
+.trumpchip svg{width:22px;height:22px}
 .card svg{display:block;width:100%;height:auto;border-radius:8px;box-shadow:0 2px 5px rgba(0,0,0,.4)}
 .hand .card{width:60px}
 button.card:hover:not(:disabled){transform:translateY(-4px)}
@@ -344,8 +348,194 @@ function qCount(){
     explain:parts.join(' + ')+' = '+total+'.'};
 }
 
+/* ---------- Chapter 2: Trumpf ---------- */
+// Strongest first inside the Trumpf suit.
+const TRUMP_ORDER=['U','9','A','K','O','B','8','7','6'];
+const TRUMP_NAME={U:'Puur','9':'Nell'};
+const isTrump=(c,t)=>!!t&&c.s===t;
+// How strong a card is inside one trick: Trumpf beats the suit led, the suit led beats the rest.
+function power(c,t,led){
+  if(isTrump(c,t))return 200-TRUMP_ORDER.indexOf(c.r);
+  if(c.s===led)return 100-rankIdx(c.r);
+  return 0;
+}
+function trickWinnerT(cards,t){
+  const led=cards[0].s;let w=0;
+  for(let i=1;i<cards.length;i++)if(power(cards[i],t,led)>power(cards[w],t,led))w=i;
+  return w;
+}
+function pointsT(c,t){
+  if(isTrump(c,t)&&c.r==='U')return 20;
+  if(isTrump(c,t)&&c.r==='9')return 14;
+  return rankOf(c.r).pts;
+}
+// Indices of the hand cards that may be played on the trick so far.
+function legalT(hand,trick,t){
+  const all=hand.map((_,i)=>i),led=trick[0].s;
+  const trumps=all.filter(i=>isTrump(hand[i],t));
+  if(led===t){
+    if(!trumps.length)return all;
+    if(trumps.length===1&&hand[trumps[0]].r==='U')return all;      // a lonely Puur cannot be forced out
+    return trumps;
+  }
+  const plain=all.filter(i=>!isTrump(hand[i],t));
+  if(!plain.length)return all;                                      // nothing but Trumpf in hand
+  const top=Math.max(0,...trick.filter(c=>isTrump(c,t)).map(c=>power(c,t,led)));
+  const over=trumps.filter(i=>power(hand[i],t,led)>top);            // no undertrumping
+  const follow=all.filter(i=>hand[i].s===led);
+  return (follow.length?follow:plain).concat(over).sort((a,b)=>a-b);
+}
+const tShort=(c,t)=>isTrump(c,t)&&TRUMP_NAME[c.r]?TRUMP_NAME[c.r]:rankOf(c.r).name;
+const tName=(c,t)=>isTrump(c,t)?(TRUMP_NAME[c.r]||rankOf(c.r).name+' of Trumpf'):cardName(c);
+function takeFrom(p,test,n){
+  const out=[];
+  for(let i=p.length-1;i>=0&&out.length<n;i--)if(test(p[i])){out.push(p[i]);p.splice(i,1)}
+  return out;
+}
+function sortHand(h){return h.sort((x,y)=>SUITS.findIndex(s=>s.id===x.s)-SUITS.findIndex(s=>s.id===y.s)||rankIdx(x.r)-rankIdx(y.r))}
+
+function qTPick(target){
+  const t=pick(SUITS).id,o=pick(SUITS.filter(s=>s.id!==t)).id,nm=TRUMP_NAME[target];
+  const cards=shuffle([{s:t,r:target},{s:o,r:target}].concat((target==='U'?['9','A']:['U','B']).map(r=>({s:t,r}))));
+  return {type:'tpick',trump:t,prompt:'Tap the '+nm+'.',cards,answer:cards.findIndex(c=>c.s===t&&c.r===target),target,
+    explain:'The '+nm+' is the '+(target==='U'?'Under':'9')+' of the Trumpf suit. The '+cardName({s:o,r:target})+' is not Trumpf, so it stays an ordinary '+(target==='U'?'Under':'9')+'.'};
+}
+function qTStronger(){
+  const t=pick(SUITS).id;
+  let a=Math.random()<.6?pick(['U','9']):pick(TRUMP_ORDER),b=pick(TRUMP_ORDER);
+  while(b===a)b=pick(TRUMP_ORDER);
+  const cards=shuffle([{s:t,r:a},{s:t,r:b}]),w=trickWinnerT(cards,t);
+  return {type:'tstronger',trump:t,prompt:'Both cards are Trumpf. Which one is stronger?',cards,answer:w,
+    explain:'The '+tShort(cards[w],t)+' beats the '+tShort(cards[1-w],t)+'. In Trumpf the order is Puur, Nell, Ass, König, Ober, Banner, 8, 7, 6.'};
+}
+function qTWinner(v){
+  v=v||pick(['small','two','none','led']);
+  const p=shuffle(deck()),t=pick(SUITS).id,L=pick(SUITS.filter(s=>s.id!==t)).id;
+  const isT=c=>c.s===t,isL=c=>c.s===L,off=c=>!isT(c)&&!isL(c);
+  let cards;
+  if(v==='small')cards=takeFrom(p,c=>isL(c)&&'AK'.includes(c.r),1).concat(shuffle(takeFrom(p,isL,1).concat(takeFrom(p,c=>isT(c)&&'678'.includes(c.r),1),takeFrom(p,off,1))));
+  else if(v==='two')cards=takeFrom(p,isL,1).concat(shuffle(takeFrom(p,c=>isT(c)&&'U9'.includes(c.r),1).concat(takeFrom(p,c=>isT(c)&&'AKO'.includes(c.r),1),takeFrom(p,isL,1))));
+  else if(v==='none')cards=takeFrom(p,isL,1).concat(shuffle(takeFrom(p,isL,1).concat(takeFrom(p,c=>off(c)&&'AK'.includes(c.r),1),takeFrom(p,off,1))));
+  else cards=takeFrom(p,isT,1).concat(shuffle(takeFrom(p,isT,2).concat(takeFrom(p,c=>!isT(c)&&c.r==='A',1))));
+  const w=trickWinnerT(cards,t),nT=cards.filter(isT).length,led=cards[0].s;
+  let explain;
+  if(!isT(cards[w]))explain='No Trumpf was played. So it is as before: the highest '+suitOf(led).name+' wins, the '+rankOf(cards[w].r).name+'.';
+  else if(led===t)explain='Trumpf was led. The highest Trumpf on the table is the '+tShort(cards[w],t)+'.';
+  else if(nT>1)explain='Two Trumpf cards are in the trick, and the higher one wins: the '+tShort(cards[w],t)+'.'+(cards[w].r==='9'&&cards.some(c=>isT(c)&&c.r==='A')?' The Nell beats the Ass.':'');
+  else explain='The '+tName(cards[w],t)+' is Trumpf, and Trumpf beats every card of the other suits.'+('678'.includes(cards[w].r)?' Even the smallest one.':'');
+  return {type:'twinner',trump:t,prompt:'Who wins this trick?',cards,answer:w,explain,led,v};
+}
+function qTValue(){
+  const t=pick(SUITS).id,o=pick(SUITS.filter(s=>s.id!==t)).id;
+  const c=pick([{s:t,r:'U'},{s:t,r:'9'},{s:t,r:'U'},{s:t,r:'9'},{s:o,r:'U'},{s:o,r:'9'},{s:t,r:pick(['A','K','O','B'])},{s:o,r:pick(['A','B'])}]);
+  const pts=pointsT(c,t);let explain;
+  if(c.s===t&&c.r==='U')explain='The Puur is worth 20 points. Strongest card, richest card.';
+  else if(c.s===t&&c.r==='9')explain='The Nell is worth 14 points.';
+  else if(c.r==='U')explain='This Under is not Trumpf, so he is worth 2 points, as before.';
+  else if(c.r==='9')explain='This 9 is not Trumpf, so it is worth nothing, as before.';
+  else explain='The '+rankOf(c.r).name+' is worth '+pts+' points, Trumpf or not.';
+  return {type:'tvalue',trump:t,prompt:'How many points is this card worth?',cards:[c],
+    options:[0,2,3,4,10,11,14,20].map(n=>({id:n,label:String(n)})),answer:pts,explain};
+}
+function qTCount(last){
+  let t,cards,total;
+  do{
+    t=pick(SUITS).id;const p=shuffle(deck());
+    cards=Math.random()<.75?takeFrom(p,c=>c.s===t&&'U9'.includes(c.r),1):[];
+    cards=shuffle(cards.concat(p.slice(0,4-cards.length)));
+    total=cards.reduce((n,c)=>n+pointsT(c,t),0)+(last?5:0);
+  }while(total===(last?5:0));
+  const plain=trickPoints(cards)+(last?5:0);
+  const cand=[plain].concat(last?[total-5]:[],shuffle([total+5,total+2,total-2,total+10,total-10,total+3,total+4,total-4])).filter(n=>n>=0&&n!==total);
+  const opts=[total];for(const n of cand)if(opts.length<4&&!opts.includes(n))opts.push(n);
+  opts.sort((a,b)=>a-b);
+  return {type:'tcount',trump:t,last:!!last,cards,
+    prompt:last?'This is the last trick of the round. How many points does it bring?':'How many points are in this trick?',
+    options:opts.map(n=>({id:n,label:String(n)})),answer:total,
+    explain:cards.map(c=>tShort(c,t)+' '+pointsT(c,t)).join(' + ')+(last?' + 5 for the last trick':'')+' = '+total+'.'};
+}
+const MC_POINTS=[
+  {prompt:'Who gets the 5 extra points at the end of a round?',options:['Whoever wins the last trick','Whoever played the Puur','The team that named Trumpf','Nobody. It is a legend.'],answer:0,
+    hint:'It has nothing to do with who named Trumpf.',explain:'The last trick of a round is worth 5 points on top of its cards.'},
+  {prompt:'How many points is the whole Trumpf suit worth?',options:['30','44','62','157'],answer:2,
+    hint:'Puur 20, Nell 14, Ass 11, Banner 10, König 4, Ober 3.',explain:'Puur 20 + Nell 14 + Ass 11 + Banner 10 + König 4 + Ober 3 = 62. A plain suit only makes 30.'},
+  {prompt:'How many points are in one whole round?',options:['120','152','157','162'],answer:2,
+    hint:'The Trumpf suit makes 62. Three plain suits make 30 each. Then comes the last trick.',explain:'62 in the Trumpf suit, 30 in each of the other three suits, and 5 for the last trick. That makes 157 in every single round.'}
+];
+function qMC(list,i){
+  const m=list[i%list.length];
+  return {type:'mc',prompt:m.prompt,cards:[],options:m.options.map((l,k)=>({id:k,label:l})),answer:m.answer,explain:m.explain,hint:m.hint};
+}
+function explainTLegal(hand,trick,t){
+  const led=trick[0].s,isT=c=>c.s===t,ln=suitOf(led).name;
+  const trumps=hand.filter(isT),plain=hand.filter(c=>!isT(c)),follow=plain.filter(c=>c.s===led);
+  if(led===t){
+    if(!trumps.length)return 'Trumpf was led, but you hold none. So you may play any card.';
+    if(trumps.length===1&&trumps[0].r==='U')return 'Trumpf was led, but your only Trumpf is the Puur. Nobody can force him out, so every card is allowed. The Puur too, if you like.';
+    return 'Trumpf was led and you hold Trumpf. So you must play Trumpf'+(trumps.length>1?', whichever you like.':'.');
+  }
+  const inTrick=trick.filter(isT);
+  if(!inTrick.length){
+    if(follow.length&&trumps.length)return 'You may follow '+ln+', or you may play a Trumpf instead. Your other cards have to wait.';
+    if(follow.length)return 'You hold '+ln+' and no Trumpf, so you must follow suit.';
+    return 'You hold no '+ln+', so any card is allowed, Trumpf or not.';
+  }
+  if(!plain.length)return 'You hold nothing but Trumpf. Then, and only then, a lower Trumpf is allowed.';
+  const top=inTrick.reduce((a,c)=>power(c,t,led)>power(a,t,led)?c:a);
+  const low=trumps.filter(c=>power(c,t,led)<power(top,t,led)),high=trumps.filter(c=>power(c,t,led)>power(top,t,led));
+  let out='The trick was trumped with the '+tShort(top,t)+'. ';
+  if(low.length)out+='Your '+low.map(c=>tShort(c,t)).join(' and your ')+(low.length>1?' are lower, so they stay':' is lower, so it stays')+' in your hand. ';
+  const ways=[];
+  if(follow.length)ways.push('follow '+ln);
+  if(high.length)ways.push('overtrump with the '+high.map(c=>tShort(c,t)).join(' or the '));
+  if(!follow.length)ways.push('throw away another card');
+  return out+'You may '+ways.join(', or ')+'.';
+}
+// scn: 'free' (plain suit led, nobody has trumped), 'trumpled' (Trumpf led), 'under' (the trick is already trumped)
+function qTLegal(scn,size){
+  size=size||6;
+  const p=shuffle(deck()),t=pick(SUITS).id,isT=c=>c.s===t;
+  let trick,hand,note;
+  if(scn==='trumpled'){
+    note=pick(['puur','puur','many','many','one','none']);
+    trick=takeFrom(p,c=>isT(c)&&c.r!=='U',1);
+    if(note==='puur')hand=takeFrom(p,c=>isT(c)&&c.r==='U',1);
+    else if(note==='many')hand=takeFrom(p,isT,2+rnd(2));
+    else if(note==='one')hand=takeFrom(p,c=>isT(c)&&c.r!=='U',1);
+    else hand=[];
+    hand=hand.concat(takeFrom(p,c=>!isT(c),size-hand.length));
+  }else{
+    const L=pick(SUITS.filter(s=>s.id!==t)).id,isL=c=>c.s===L,off=c=>!isT(c)&&!isL(c);
+    trick=takeFrom(p,isL,1);
+    if(scn==='free'){
+      const nf=Math.random()<.7?1+rnd(2):0;
+      hand=takeFrom(p,isL,nf).concat(takeFrom(p,isT,1+rnd(2)));
+      note=nf?'choice':'void';
+    }else{
+      const x=pick(['A','K','O','B']);                       // the Trumpf already lying in the trick
+      const lower=c=>isT(c)&&TRUMP_ORDER.indexOf(c.r)>TRUMP_ORDER.indexOf(x);
+      const higher=c=>isT(c)&&TRUMP_ORDER.indexOf(c.r)<TRUMP_ORDER.indexOf(x);
+      if(Math.random()<.5)trick=trick.concat(takeFrom(p,c=>!isT(c),1));
+      trick=trick.concat(takeFrom(p,c=>isT(c)&&c.r===x,1));
+      if(Math.random()<.15){hand=takeFrom(p,lower,1).concat(takeFrom(p,isT,2+rnd(2)));size=hand.length;note='onlytrumpf'}
+      else{
+        hand=takeFrom(p,lower,1+rnd(2));
+        if(Math.random()<.5)hand=hand.concat(takeFrom(p,higher,1));
+        if(Math.random()<.5)hand=hand.concat(takeFrom(p,isL,1));
+        note='under';
+      }
+    }
+    hand=hand.concat(takeFrom(p,off,size-hand.length));
+  }
+  sortHand(hand);
+  const answer=legalT(hand,trick,t);
+  const under=scn==='under'?hand.map((c,i)=>isT(c)&&!answer.includes(i)?i:-1).filter(i=>i>=0):[];
+  return {type:'tlegal',trump:t,prompt:'Which cards may you play?',cards:trick,hand,answer,led:trick[0].s,scn,note,under,
+    explain:explainTLegal(hand,trick,t)};
+}
+
 const STAGES=[
-  {title:'Meet the cards',blurb:'Four suits, nine cards each. None of it looks like a poker deck.',lessons:[
+  {ch:1,title:'Meet the cards',blurb:'Four suits, nine cards each. None of it looks like a poker deck.',lessons:[
     {title:'The four suits',help:0,n:6,intro:'suits',
       text:'A Jass deck has four suits. No hearts, no spades. Meet Eichle, Rose, Schelle and Schilte. And yes, the roses are yellow.',
       gen:()=>qSuit()},
@@ -359,7 +549,7 @@ const STAGES=[
       text:'No help this time. Ten cards. Get eight right and the next stage opens.',
       gen:i=>[qSuit,qPick,qBridge,()=>qNumber(true)][i%4]()}
   ]},
-  {title:'Who wins the trick?',blurb:'Everyone plays one card. The strongest card takes all four.',lessons:[
+  {ch:1,title:'Who wins the trick?',blurb:'Everyone plays one card. The strongest card takes all four.',lessons:[
     {title:'Stronger or weaker',help:0,n:6,intro:'ladder',
       text:'From the top: Ass, König, Ober, Under, Banner, 9, 8, 7, 6. Watch the Banner. It is a ten, yet it sits below the Under.',
       gen:i=>i<3?qStronger():qWinner(false)},
@@ -370,7 +560,7 @@ const STAGES=[
       text:'Ten tricks, no help. Get eight right and the next stage opens.',
       gen:i=>i%2?qLegal(i<5?6:9):qWinner(i>1)}
   ]},
-  {title:'What is it worth?',blurb:'Jass is won on points, not on the number of tricks.',lessons:[
+  {ch:1,title:'What is it worth?',blurb:'Jass is won on points, not on the number of tricks.',lessons:[
     {title:'Card values',help:0,n:6,intro:'values',
       text:'Ass 11, Banner 10, König 4, Ober 3, Under 2. The 9, 8, 7 and 6 are worth nothing. Trumpf will shake this up later.',
       gen:()=>qValue()},
@@ -380,6 +570,37 @@ const STAGES=[
     {title:'Check: count like a local',help:2,n:10,check:true,
       text:'Ten questions, no table to peek at. Get eight right and Chapter 1 is yours.',
       gen:i=>i%3===0?qValue():qCount()}
+  ]},
+  {ch:2,title:'Trumpf changes everything',blurb:'One suit becomes the boss, and two modest cards take the crown.',lessons:[
+    {title:'Puur and Nell',help:0,n:6,intro:'trumpcards',
+      text:'Before each round, one suit is named Trumpf{trumpf}. In that suit two modest cards take over. The Under becomes the Puur{puur}, the strongest card in the whole game. The 9 becomes the Nell{nell}, the second strongest. After them it goes on as you know it: Ass, König, Ober, Banner, 8, 7, 6.',
+      gen:i=>i===0?qTPick('U'):i===1?qTPick('9'):i===4?qTPick(pick(['U','9'])):qTStronger()},
+    {title:'Trumpf beats everything',help:1,n:6,
+      text:'Any Trumpf beats any card of the other suits. Even the 6 of Trumpf beats an Ass. If several Trumpf cards land in one trick, the highest Trumpf wins. And with no Trumpf in the trick, everything is as before.',
+      gen:i=>qTWinner(['small','two','none','led','two','small'][i%6])},
+    {title:'Puur 20, Nell 14',help:0,n:6,intro:'trumpvalues',
+      text:'Trumpf changes the points too. The Puur is worth 20 and the Nell 14. Everything else keeps its value. In the other suits the Under is still worth 2 and the 9 still nothing.',
+      gen:i=>i<3?qTValue():qTCount(false)},
+    {title:'Five for the last trick',help:1,n:6,
+      text:'One more thing about points. Whoever wins the very last trick of a round gets 5 points on top. Together with the cards that makes 157 points in every round. You will hear that number a lot.',
+      gen:i=>i%2?qMC(MC_POINTS,(i-1)/2):qTCount(true)},
+    {title:'Check: Trumpf',help:2,n:10,check:true,
+      text:'Ten questions, no help. Get eight right and the next stage opens.',
+      gen:i=>[()=>qTWinner(),()=>qTStronger(),()=>qTCount(false),()=>qTValue(),()=>qTCount(true),()=>qTPick(pick(['U','9']))][i%6]()}
+  ]},
+  {ch:2,title:'What may I play?',blurb:'Three rules about Trumpf. The third one starts arguments in every family.',lessons:[
+    {title:'You may always trump',help:0,n:6,
+      text:'Here Jass differs from the card games you know. If a plain suit is led and you hold it, you may follow suit, or you may play a Trumpf instead. Taking a trick with Trumpf is called Steche{steche}. Any other card is not allowed.',
+      gen:i=>qTLegal('free',5+Math.min(i,1))},
+    {title:'When Trumpf is led',help:1,n:6,
+      text:'If Trumpf is led, you must play Trumpf if you have one. One card stands above that law: the Puur. If he is your only Trumpf, nobody can force him out, and you may play any card.',
+      gen:i=>qTLegal('trumpled',5+Math.min(i,1))},
+    {title:'No undertrumping',help:0,n:6,
+      text:'Now the rule that starts arguments. If somebody has already trumped the trick, you may not play a lower Trumpf than his. That would be Untertrumpfe{untertrumpfe}. Follow suit, overtrump, or throw another card away. The only exception: you hold nothing but Trumpf.',
+      gen:()=>qTLegal('under',6)},
+    {title:'Check: play by the rules',help:2,n:10,check:true,
+      text:'Ten hands, no help. Get eight right and nobody at the table can catch you out.',
+      gen:i=>qTLegal(['free','trumpled','under','under','trumpled'][i%5],i<5?6:8)}
   ]}
 ];
 const PASS=.8;
@@ -570,7 +791,9 @@ const SKETCH_URL='https://youtu.be/7F2mBZ3Axs8';
 // Printable cheat sheets, built by tools/make-cheatsheets.js. One US Letter page each.
 const SHEETS=[
   ['cheatsheets/jass-cheat-sheet-1-the-cards.pdf','1 · The cards','Suits, card names, how to say them and how to read a card.'],
-  ['cheatsheets/jass-cheat-sheet-2-rank-and-points.pdf','2 · Rank and points','Who wins a trick, what each card is worth, and one trick worked out.']
+  ['cheatsheets/jass-cheat-sheet-2-rank-and-points.pdf','2 · Rank and points','Who wins a trick, what each card is worth, and one trick worked out.'],
+  ['cheatsheets/jass-cheat-sheet-3-trumpf.pdf','3 · Trumpf','Puur and Nell, the order and the points in the Trumpf suit, and the 157.'],
+  ['cheatsheets/jass-cheat-sheet-4-what-may-i-play.pdf','4 · What may I play?','Following suit, trumping and the ban on undertrumping, with one hand worked out.']
 ];
 function sheetsHTML(){
   if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
@@ -578,9 +801,16 @@ function sheetsHTML(){
 }
 const extLink=(url,label)=>'<a class="ghost link" href="'+url+'">'+label+'</a>';
 const songLink=label=>extLink(SONG_URL,label);
+const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf'};
+const WORDS2=[['trumpf','Trumpf','troompf','the boss suit of a round'],['puur','Puur','poor','the Under of Trumpf, strongest card of all'],['nell','Nell','nell','the 9 of Trumpf, second strongest'],['steche','Steche','SHTEKH-eh','to take a trick with a Trumpf'],['untertrumpfe','Untertrumpfe','OON-ter-troomp-feh','to play a lower Trumpf on a trumped trick. Not allowed.']];
 const WORDS=[['jass','Jass','yahss','the game, and what you do: jassen'],['schieber','Schieber','SHEE-ber','the kind of Jass you are learning'],['stich','Stich','shtikh','a trick: four cards, one from each player'],['farb-aagaeh','Farb aagäh','farb AH-gah','to follow suit']];
 function ladderHTML(){return '<div class="ladder">'+LADDER.map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function valuesHTML(){return '<div class="vals">'+RANKS.slice(0,5).map(r=>'<div><span>'+r.name+'</span><b>'+r.pts+'</b></div>').join('')+'<div><span>9, 8, 7, 6</span><b>0</b></div></div>'}
+function trumpLadderHTML(){return '<div class="ladder">'+['Puur','Nell','Ass','König','Ober','Banner','8','7','6'].map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
+function trumpValuesHTML(){return '<div class="vals">'+[['Puur',20],['Nell',14],['Ass',11],['Banner',10],['König',4],['Ober',3],['8, 7, 6',0]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">In the other suits: Under 2, and the 9 nothing.</span>'}
+function trumpCardsHTML(suit){
+  return '<div class="deckrow">'+TRUMP_ORDER.map(r=>'<div class="cardbox"><span class="card">'+cardSVG({s:suit,r})+'</span><span class="cap">'+tShort({s:suit,r},suit)+'</span></div>').join('')+'</div>';
+}
 function suitsHTML(){return '<div class="suits">'+SUITS.map(s=>'<div class="suit">'+symSVG(s.id)+'<div><b>'+s.name+spk(s.id)+'</b><span>'+s.en+'</span><span class="say">say: '+s.say+'</span></div></div>').join('')+'</div>'}
 function facesHTML(suit){
   return '<div class="deckrow">'+RANKS.map(r=>'<div class="cardbox"><span class="card">'+cardSVG({s:suit,r:r.id})+'</span><span class="cap">'+r.name+'</span></div>').join('')+'</div>';
@@ -591,14 +821,17 @@ function introVisual(kind){
   if(kind==='ladder')return ladderHTML();
   if(kind==='sixnine')return '<div class="deckrow">'+['6','9'].map(r=>'<div class="cardbox"><span class="card" style="width:84px">'+cardSVG({s:'schelle',r})+'</span><span class="cap">'+r+'</span></div>').join('')+'</div>';
   if(kind==='values')return valuesHTML();
+  if(kind==='trumpcards')return '<p class="small dim">With Schilte as Trumpf, from strongest to weakest:</p>'+trumpCardsHTML('schilte');
+  if(kind==='trumpvalues')return trumpValuesHTML();
   return '';
 }
 
 /* ---------- home ---------- */
 function renderHome(){
   L=null;
-  let next=null;
-  const stages=STAGES.map((st,si)=>{
+  let next=null,path='',ch=0;
+  STAGES.forEach((st,si)=>{
+    if(st.ch!==ch){ch=st.ch;path+='<h2 class="prompt">'+CHAPTERS[ch]+'</h2>'}
     const open=stageOpen(si);
     const lessons=st.lessons.map((ls,li)=>{
       const best=S.best[lkey(si,li)];const done=best!==undefined&&(!ls.check||best>=PASS);
@@ -607,17 +840,18 @@ function renderHome(){
         +'<span class="tick">'+(done?'&#10003;':'')+'</span><span>'+ls.title+'</span>'
         +'<span class="lvl">'+(best!==undefined?Math.round(best*100)+'% · ':'')+HELP[ls.help]+'</span></button>';
     }).join('');
-    return '<section class="stage'+(open?'':' locked')+'"><div class="stage-head"><span class="stage-num">Stage '+(si+1)+'</span><h3>'+st.title+'</h3>'
+    path+='<section class="stage'+(open?'':' locked')+'"><div class="stage-head"><span class="stage-num">Stage '+(si+1)+'</span><h3>'+st.title+'</h3>'
       +'<span class="state">'+(stagePassed(si)?'Done':(open?'Open':'Locked'))+'</span></div><p>'+st.blurb+'</p><div class="lessons">'+lessons+'</div></section>';
-  }).join('');
-  const all=STAGES.every((_,i)=>stagePassed(i));
+  });
+  const all=STAGES.every((_,i)=>stagePassed(i)),ch1=stagePassed(2);
+  const hello=all?'You know the cards, you know Trumpf and you know what you may play. Next come Ansagen and Schieben, and then your first full round. I am already setting the table.'
+    :ch1?'Chapter 1 is yours. Now comes Trumpf, and half of what you just learned gets turned on its head. Do not worry. It happens to everyone.'
+    :'Your family took the recipes to America and left the card game behind. Sit down, we’ll fix that. One small step at a time.';
   app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni('happy')+'<div class="bubble">'
     +'<p class="chalk">Grüezi mitenand! Chömed, mer jassed.'+spk('gruezi')+'<span class="tr">Hello everyone! Come on, let’s play. · I’m Vreni.</span></p>'
-    +(all?'<p>Chapter 1 is yours. You know the cards, you know who wins and you can count. Next comes Trumpf, and everything you just learned gets turned on its head.</p>'
-         :'<p>Your family took the recipes to America and left the card game behind. Sit down, we’ll fix that. One small step at a time.</p>')
-    +'</div></div></div>'
-    +'<div class="path"><h2 class="prompt">Chapter 1 · First tricks</h2>'+stages
-    +'<p class="later"><b>Still to come:</b> Chapter 2 · Trumpf, Chapter 3 · Playing well, Chapter 4 · The full game.</p></div>'
+    +'<p>'+hello+'</p></div></div></div>'
+    +'<div class="path">'+path
+    +'<p class="later"><b>Still to come:</b> Chapter 2 goes on with Ansagen or Schieben and your first full round. Then Chapter 3 · Playing well and Chapter 4 · The full game.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
     +'<div class="slate breaks"><h2>For the breaks</h2><p class="dim small">Two Swiss classics on YouTube. Both are in Swiss German, which is half the fun.</p>'
     +'<div class="break">'+(PUBLIC_SITE?'<h3>Vreni’s favourite Jass song</h3>'+player('V450wfaf0jE','E schöni Jass-Rundi by Oesch’s die Dritten'):songLink('Vreni’s favourite Jass song'))+'<span class="small dim">«E schöni Jass-Rundi» by Oesch’s die Dritten. She sings along. You have been warned.'+(PUBLIC_SITE?' <a href="'+SONG_URL+'">Open on YouTube</a>':'')+'</span></div>'
@@ -628,7 +862,7 @@ function renderHome(){
 function renderDeck(){
   L=null;
   app.innerHTML='<div class="slate" style="display:flex;flex-direction:column;gap:14px">'
-    +'<div><h1>The cards</h1><p class="dim">Your cheat sheet for Chapter 1. Come back whenever you like.</p></div>'
+    +'<div><h1>The cards</h1><p class="dim">Everything you have met so far. Come back whenever you like.</p></div>'
     +'<div class="breaks"><h2>Take it to the table</h2>'+sheetsHTML()+'</div>'
     +'<div><h2>Four suits</h2>'+suitsHTML()+'</div>'
     +'<div><h2>Nine cards in each suit</h2><div class="scroll"><table class="sheet-table"><thead><tr><th>Card</th><th>Say it</th><th>Like</th><th>Points</th></tr></thead><tbody>'
@@ -642,6 +876,10 @@ function renderDeck(){
     +'</tbody></table></div></div>'
     +'<div><h2>Two rules so far</h2><p>1. If you hold the suit that was led, you must play it.</p><p>2. The highest card of the suit led wins the trick. Other suits never win.</p>'
     +'<p class="small dim">We play counter-clockwise. Trumpf arrives in Chapter 2 and bends both rules.</p></div>'
+    +(stageOpen(3)?'<div><h2>Chapter 2 · Trumpf</h2><p class="dim small">In the Trumpf suit the order and the points change. Shown here with Schilte as Trumpf, from strongest to weakest.</p>'+trumpCardsHTML('schilte')
+      +'<div style="margin-top:10px">'+trumpValuesHTML()+'</div>'
+      +'<div class="scroll" style="margin-top:10px"><table class="sheet-table"><tbody>'+WORDS2.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
+      +'<p class="small dim" style="margin-top:8px">Three rules. You may always play a Trumpf instead of following suit. If Trumpf is led, you must play Trumpf, unless the Puur is your only one. And never play a lower Trumpf on a trick that is already trumped.</p></div>':'')
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';
@@ -658,7 +896,7 @@ function renderLesson(){
   const st=STAGES[L.si];
   if(L.phase==='intro'){
     app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni('happy')+'<div class="bubble">'
-      +'<h2>'+L.ls.title+'</h2><p>'+L.ls.text+'</p></div></div>'
+      +'<h2>'+L.ls.title+'</h2><p>'+L.ls.text.replace(/\{([a-z-]+)\}/g,(m,k)=>spk(k))+'</p></div></div>'
       +(L.ls.intro?'<div style="margin-top:14px">'+introVisual(L.ls.intro)+'</div>':'')
       +'<div class="actions" style="margin-top:16px"><button class="primary" type="button" data-act="begin">Start</button>'
       +'<button class="ghost" type="button" data-go="home">Not now</button></div></div>';
@@ -666,33 +904,36 @@ function renderLesson(){
   }
   const q=L.queue[L.idx],answered=L.phase==='feedback';
   const showAid=L.help===0||(L.help===1&&L.hinted);
-  const labels=showAid&&['stronger','winner','legal','count'].includes(q.type);
+  const labels=showAid&&['stronger','winner','legal','count','tstronger','twinner','tlegal','tcount'].includes(q.type);
   const dots=L.queue.slice(0,L.ls.n).map((_,i)=>'<span class="dot'+(L.marks[i]===true?' ok':L.marks[i]===false?' no':'')+(i===Math.min(L.idx,L.ls.n-1)&&L.idx<L.ls.n?' now':'')+'"></span>').join('');
   const cardBtn=(c,i,group)=>{
-    const tappable=(group==='table'&&['pick','stronger','winner'].includes(q.type))||(group==='hand');
+    const tappable=(group==='table'&&['pick','stronger','winner','tpick','tstronger','twinner'].includes(q.type))||(group==='hand');
     let cls='card';
-    if(group==='table'&&['suit','bridge','value','number'].includes(q.type))cls+=' big';
+    if(group==='table'&&q.cards.length===1&&q.options)cls+=' big';
     if(group==='hand'&&L.sel.includes(i))cls+=' sel';
-    if(showAid&&q.type==='winner'&&c.s!==q.led&&!answered)cls+=' offsuit';
-    if(showAid&&q.type==='legal'&&group==='hand'&&c.s===q.led)cls+=' same';
+    if(showAid&&(q.type==='winner'||q.type==='twinner')&&c.s!==q.led&&c.s!==q.trump&&!answered)cls+=' offsuit';
+    if(showAid&&q.hand&&group==='hand'&&c.s===q.led&&c.s!==q.trump)cls+=' same';
+    if(showAid&&q.trump&&c.s===q.trump)cls+=' tm';
     if(answered){
       if(group==='hand'){if(q.answer.includes(i))cls+=' right';else if(L.sel.includes(i))cls+=' wrong'}
       else if(tappable){if(i===q.answer)cls+=' right';else if(i===L.chosen)cls+=' wrong'}
     }
-    const tag=(group==='table'&&q.type==='winner'&&i===0)||(group==='table'&&q.type==='legal')?'<span class="tag">led</span>':'';
-    const cap=labels?rankOf(c.r).name:'';
+    const tag=group==='table'&&i===0&&q.led!==undefined?'<span class="tag">led</span>':'';
+    const cap=labels?(q.trump?tShort(c,q.trump):rankOf(c.r).name):'';
     const inner=tappable
       ?'<button type="button" class="'+cls+'" data-card="'+i+'" data-group="'+group+'"'+(answered?' disabled':'')+' aria-pressed="'+(group==='hand'&&L.sel.includes(i))+'">'+cardSVG(c)+'</button>'
       :'<span class="'+cls+'">'+cardSVG(c)+'</span>';
     return '<div class="cardbox">'+inner+'<span class="cap">'+cap+' '+tag+'</span></div>';
   };
   let table='<div class="cards">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
-  if(q.type==='legal')table='<span class="row-label">On the table</span>'+table+'<span class="row-label">Your hand</span><div class="cards hand">'+q.hand.map((c,i)=>cardBtn(c,i,'hand')).join('')+'</div>';
+  if(q.last)table='<span class="row-label">Last trick of the round</span>'+table;
+  if(q.hand)table='<span class="row-label">On the table</span>'+table+'<span class="row-label">Your hand</span><div class="cards hand">'+q.hand.map((c,i)=>cardBtn(c,i,'hand')).join('')+'</div>';
+  if(q.trump)table='<div class="trumpchip"><span>Trumpf</span>'+symSVG(q.trump)+'<b>'+suitOf(q.trump).name+'</b></div>'+table;
   let options='';
   if(q.options)options='<div class="options">'+q.options.map(o=>{
     let cls='opt';if(answered){if(o.id===q.answer)cls+=' right';else if(o.id===L.chosen)cls+=' wrong'}
     return '<button type="button" class="'+cls+'" data-opt="'+o.id+'"'+(answered?' disabled':'')+'>'+o.label+(o.sub?'<small>'+o.sub+'</small>':'')+'</button>'}).join('')+'</div>';
-  if(q.type==='legal'&&!answered)options='<div class="actions"><button class="primary" type="button" data-act="check"'+(L.sel.length?'':' disabled')+'>Check</button><span class="small dim">Tap every card that is allowed.</span></div>';
+  if(q.hand&&!answered)options='<div class="actions"><button class="primary" type="button" data-act="check"'+(L.sel.length?'':' disabled')+'>Check</button><button class="ghost" type="button" data-act="all">'+(L.sel.length===q.hand.length?'Clear':'Select all')+'</button><span class="small dim">Tap every card that is allowed.</span></div>';
   let aid='';
   if(showAid&&!answered)aid='<div class="aid">'+aidHTML(q)+'</div>';
   else if(L.help===1&&!answered)aid='<div class="actions"><button class="ghost" type="button" data-act="hint">Ask Vreni for a hint</button></div>';
@@ -712,7 +953,7 @@ function renderLesson(){
     +HELP.map((h,i)=>'<button type="button" data-help="'+i+'" aria-pressed="'+(L.help===i)+'">'+h+'</button>').join('')+'</div></div>';
   app.innerHTML='<div class="lesson-top"><span class="t">Stage '+(L.si+1)+' · '+L.ls.title+(q.first?'':' · second try')+'</span><div class="dots">'+dots+'</div>'
     +'<button class="ghost" type="button" data-go="home" aria-label="Leave lesson">Leave</button></div>'
-    +'<h2 class="prompt">'+q.prompt+'</h2><div class="table">'+table+'</div>'+options+aid+fb+helpSeg;
+    +'<h2 class="prompt">'+q.prompt+'</h2>'+(q.cards.length?'<div class="table">'+table+'</div>':'')+options+aid+fb+helpSeg;
   if(answered){const b=document.getElementById('next-btn');if(b)b.focus({preventScroll:false})}
 }
 function aidHTML(q){
@@ -723,12 +964,26 @@ function aidHTML(q){
   if(q.type==='stronger')return ladderHTML();
   if(q.type==='winner')return '<span><b>'+suitOf(q.led).name+'</b> was led. Only '+suitOf(q.led).name+' can win.</span>'+ladderHTML();
   if(q.type==='legal')return '<span><b>'+suitOf(q.led).name+'</b> was led. Hold that suit? Then play it. Hold none? Then anything goes.</span>'+(q.has?'<span class="small dim">The gold bar marks your '+suitOf(q.led).name+' cards.</span>':'');
+  if(q.type==='mc')return '<span>'+q.hint+'</span>';
+  if(q.type==='tpick')return '<span>The Puur is the Under of the Trumpf suit. The Nell is its 9. The red T marks every Trumpf card.</span>';
+  if(q.type==='tstronger')return trumpLadderHTML();
+  if(q.type==='twinner')return '<span>Is there a Trumpf in the trick? Look for the red T. Then the highest Trumpf wins. If not, the highest <b>'+suitOf(q.led).name+'</b> wins.</span>'+trumpLadderHTML();
+  if(q.type==='tvalue'||q.type==='tcount')return trumpValuesHTML()+(q.last?'<span><b>Last trick:</b> add 5.</span>':'');
+  if(q.type==='tlegal'){
+    const ln=suitOf(q.led).name,inTrick=q.cards.filter(c=>c.s===q.trump);
+    if(q.led===q.trump)return '<span>Trumpf was led. Do you hold a Trumpf (red T)? Then you must play one. Only a lonely Puur may stay home.</span>';
+    if(!inTrick.length)return '<span><b>'+ln+'</b> was led. You may follow suit (gold bar) or play a Trumpf (red T). Hold no '+ln+'? Then anything goes.</span>';
+    const top=inTrick.reduce((a,c)=>power(c,q.trump,q.led)>power(a,q.trump,q.led)?c:a);
+    return '<span>The trick was trumped with the <b>'+tShort(top,q.trump)+'</b>. A lower Trumpf is not allowed, unless you hold nothing but Trumpf.</span>'+trumpLadderHTML();
+  }
   return valuesHTML();
 }
 function answer(ok){
   const q=L.queue[L.idx];L.ok=ok;L.phase='feedback';
   if(q.first){L.marks[L.idx]=ok;if(ok)L.right++;else{const again=L.ls.gen(L.idx);again.first=false;L.queue.push(again)}}
-  L.line=ok&&q.type==='winner'&&Math.random()<.4?TRICK_LINE:pick(ok?GOOD:BAD);
+  L.line=ok&&(q.type==='winner'||q.type==='twinner')&&Math.random()<.4?TRICK_LINE:pick(ok?GOOD:BAD);
+  if(ok&&q.type==='tpick')L.line=[TRUMP_NAME[q.target]+'!',q.target==='U'?'The boss.':'Second in command.',q.target==='U'?'puur':'nell'];
+  if(!ok&&q.type==='tlegal'&&q.under.some(i=>L.sel.includes(i)))L.line=['Untertrumpfe? Nid a mim Tisch!','Undertrumping? Not at my table!','nid-a-mim-tisch'];
   if(ok&&q.type==='number'){const r=rankOf(q.answer);L.line=[r.ch+'!',r.en.charAt(0).toUpperCase()+r.en.slice(1)+'.',AUDIO_KEY[r.id]]}
   if(!voice(L.line[2]))sfx(ok?'good':'bad');
   renderLesson();
@@ -743,7 +998,7 @@ function finishLesson(){
   const pct=Math.round(score*100);
   let msg;
   if(L.ls.check)msg=passed
-    ?'<p class="chalk">Jetzt chasch es!<span class="tr">Now you’ve got it!</span></p><p>Stage '+(L.si+1)+' is done.'+(L.si+1<STAGES.length?' Stage '+(L.si+2)+' is open.':' That was all of Chapter 1.')+'</p>'
+    ?'<p class="chalk">Jetzt chasch es!<span class="tr">Now you’ve got it!</span></p><p>Stage '+(L.si+1)+' is done.'+(!STAGES[L.si+1]?' That is everything so far. More is on the way.':STAGES[L.si+1].ch!==STAGES[L.si].ch?' Chapter '+STAGES[L.si].ch+' is done. Stage '+(L.si+2)+' opens Chapter '+STAGES[L.si+1].ch+'.':' Stage '+(L.si+2)+' is open.')+'</p>'
      +'<p class="small">'+songLink('Celebrate with a song')+' <span class="dim">When Vreni wins, she puts this on.</span></p>'
     :'<p class="chalk">Fast.<span class="tr">Almost.</span></p><p>You need 80% to open the next stage. Go back a lesson, or try the check again. No one is counting but me.</p>'
      +'<p class="small">'+extLink(SKETCH_URL,'Take a break with Emil')+' <span class="dim">«Der Jasser», a Swiss comedy classic from 1974.</span></p>';
@@ -786,6 +1041,7 @@ document.addEventListener('click',e=>{
     }
     L.chosen=i;answer(i===q.answer);return;
   }
+  if(t.dataset.act==='all'){L.sel=L.sel.length===q.hand.length?[]:q.hand.map((_,i)=>i);renderLesson();return}
   if(t.dataset.act==='check'){
     const a=q.answer.slice().sort((x,y)=>x-y),s=L.sel.slice().sort((x,y)=>x-y);
     answer(a.length===s.length&&a.every((x,i)=>x===s[i]));return;

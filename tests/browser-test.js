@@ -241,6 +241,7 @@ function expected(q) {
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn').length === 57), 'home shows 57 lessons');
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 53), 'stages 2 to 14 locked at start');
   await overflow('home');
+  ok(await page.evaluate(() => { const b = document.querySelector('#continue-btn'); return b && b.textContent === 'Start' && b.dataset.stage === '0' && b.dataset.lesson === '0' && /Stage 1 · The four suits/.test(b.parentElement.innerText) && b.getBoundingClientRect().bottom < window.innerHeight; }), 'home, first visit: a «Start» button for lesson 1.1 on the first screen');
   const pl = await page.evaluate(() => ({ badges: document.querySelectorAll('.places svg.badge').length, links: Array.from(document.querySelectorAll('.places a')).map(a => a.getAttribute('href')), text: document.querySelector('.places').closest('.slate').innerText }));
   ok(pl.badges === 2 && pl.links.join(' ') === 'https://heraldry-wiki.com/wiki/Winterthur https://sos.idaho.gov/StateSeal/' && /Winterthur, Switzerland/.test(pl.text) && /Idaho, USA/.test(pl.text) && /our own little drawings/.test(pl.text) && /For Heidi/.test(pl.text), 'home: the card about Winterthur and Idaho, dedicated to Heidi, with own badges and links to the real emblems');
   if (SITE) ok(await page.evaluate(() => Array.from(document.querySelectorAll('.player iframe')).map(f => f.src).join(' ') === 'https://www.youtube-nocookie.com/embed/V450wfaf0jE https://www.youtube-nocookie.com/embed/7F2mBZ3Axs8'), 'public site: two video players on the start page');
@@ -258,14 +259,28 @@ function expected(q) {
   ok(await page.evaluate(() => !!document.querySelector('.aid')), 'guided: aid always visible');
   await click('[data-go="home"]');
   ok(await page.evaluate(() => L === null && document.querySelectorAll('.lesson-btn').length === 57), 'Leave returns to the path');
+  await click('.lesson-btn[data-stage="0"][data-lesson="0"]'); await click('[data-act="begin"]');
+  const spoken = [];
+  for (let k = 0; k < 4; k++) { await page.evaluate(() => { playing = null; }); await answerCurrent(false); await sleep(200); spoken.push(await page.evaluate(() => playing ? playing.src.split('/').pop() : null)); await click('[data-act="next"]'); }
+  const everyday = ['guet-gmacht.mp3', 'suuber.mp3', 'genau-eso.mp3'];
+  ok(everyday.includes(spoken[0]) && spoken[1] === null && spoken[2] === null && everyday.includes(spoken[3]), 'everyday praise: Vreni says it for the first right answer and for the fourth, the chime does the rest ' + JSON.stringify(spoken));
+  await click('[data-go="home"]');
 
   // ---- stage 1
   let r = await playLesson(0, 0); ok(r.score === '100%', 'lesson 1.1 all correct -> 100% (got ' + r.score + ')');
+  let fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
+  ok(fin.next === 'Next lesson' && fin.primary === 'Next lesson' && fin.chalk === 'Suuber!' && /Next: Stage 1 · The picture cards/.test(fin.text) && /Ready for the next lesson, with a little less help\./.test(fin.text), 'after 1.1 (guided, the next one gives hints on request): «Suuber», less help announced, and a button to the next lesson ' + JSON.stringify([fin.next, fin.primary, fin.chalk]));
+  await click('#next-lesson');
+  ok(await page.evaluate(() => L && L.si === 0 && L.li === 1 && L.phase === 'intro'), '«Next lesson» opens lesson 1.2');
   await click('[data-go="home"]');
   r = await playLesson(0, 1, [0]); ok(r.score === '83%', 'lesson 1.2 one wrong of six -> 83% (got ' + r.score + ')');
+  fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
+  ok(fin.next === 'Next lesson' && fin.chalk === 'Guet gmacht!' && /Ready for the next lesson\./.test(fin.text) && !/less help/.test(fin.text), 'after 1.2 (hints, the next one is guided again): «Guet gmacht», and no promise of less help ' + JSON.stringify([fin.next, fin.chalk]));
   await click('[data-go="home"]');
   // check with 3 wrong of 10 = 70% must NOT unlock
   r = await playLesson(0, 2); ok(r.score === '100%', 'lesson 1.3 six or nine all correct -> 100% (got ' + r.score + ')');
+  fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
+  ok(fin.next === 'On to the check' && /Ready for the check: ten questions on your own\./.test(fin.text) && /Next: Stage 1 · Check: name that card/.test(fin.text), 'after 1.3: the check is announced and offered');
   await click('[data-go="home"]');
   await click('.lesson-btn[data-stage="0"][data-lesson="2"]'); await click('[data-act="begin"]');
   await page.evaluate(() => { playing = null; }); await answerCurrent(false); await sleep(300);
@@ -276,9 +291,22 @@ function expected(q) {
   ok(await page.evaluate(() => L.help === 2 && !document.querySelector('[data-help]') && !document.querySelector('.aid') && !document.querySelector('[data-act="hint"]')), 'check: help cannot be switched on');
   await click('[data-go="home"]');
   r = await playLesson(0, 3, [0, 1, 2]); ok(r.score === '70%', 'check 1.4 with three wrong -> 70% (got ' + r.score + ')');
+  fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
+  ok(fin.next === null && fin.primary === 'Back to the path' && !/Next:/.test(fin.text), 'a failed check offers no way on, only the path and another try');
   await click('[data-go="home"]');
   ok(await page.evaluate(() => document.querySelector('.lesson-btn[data-stage="1"][data-lesson="0"]').disabled), '70% does not open stage 2');
   r = await playLesson(0, 3, [4, 7]); ok(r.score === '80%', 'check 1.4 with two wrong -> 80% (got ' + r.score + ')');
+  fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
+  ok(fin.next === 'On to Stage 2' && fin.primary === 'On to Stage 2' && /Next: Stage 2 · Stronger or weaker/.test(fin.text), 'a passed check leads on to the next stage');
+  await click('[data-go="home"]');
+  ok(await page.evaluate(() => { const b = document.querySelector('#continue-btn'); return b && b.textContent === 'Continue' && b.dataset.stage === '1' && b.dataset.lesson === '0' && /Stage 2 · Stronger or weaker/.test(b.parentElement.innerText); }), 'home, later: «Continue» points at the first lesson that is open and not done');
+  await click('#continue-btn');
+  ok(await page.evaluate(() => L && L.si === 1 && L.li === 0 && L.phase === 'intro'), '«Continue» opens that lesson');
+  await click('[data-go="home"]');
+  // below 80% the lesson itself comes first: «Again» is the main button, the next lesson the second
+  r = await playLesson(1, 0, [0, 1]); ok(r.score === '67%', 'lesson 2.1 with two wrong of six -> 67% (got ' + r.score + ')');
+  fin = await page.evaluate(() => ({ next: (document.querySelector('#next-lesson') || {}).textContent || null, cls: (document.querySelector('#next-lesson') || {}).className || null, primary: document.querySelector('.actions .primary').textContent, chalk: document.querySelector('.chalk').childNodes[0].textContent, text: document.querySelector('#app').innerText.replace(/\s+/g, ' ') }));
+  ok(fin.primary === 'Again' && fin.next === 'Next lesson' && fin.cls === 'ghost' && fin.chalk === 'Guet.' && /Do it once more if you like/.test(fin.text), 'below 80%: «Again» comes first, the next lesson stays within reach ' + JSON.stringify([fin.primary, fin.next, fin.cls, fin.chalk]));
   await click('[data-go="home"]');
   ok(await page.evaluate(() => !document.querySelector('.lesson-btn[data-stage="1"][data-lesson="0"]').disabled), '80% opens stage 2');
   ok(await page.evaluate(() => document.querySelector('.lesson-btn[data-stage="2"][data-lesson="0"]').disabled), 'stage 3 still locked');
@@ -350,6 +378,21 @@ function expected(q) {
   await page.evaluate(() => { L.queue[0] = qMC(MC_VORHAND, 4, true); L.queue[0].first = true; renderLesson(); });
   ok(await page.evaluate(() => !!document.querySelector('.table svg.seats')), 'a seat question shows the table diagram');
   await click('[data-go="home"]');
+  {
+    const orders = new Set(); let firsts = 0, sets = 0, proof = null;
+    for (let k = 0; k < 8; k++) {
+      await click('.lesson-btn[data-stage="5"][data-lesson="1"]'); await click('[data-act="begin"]');
+      const w = await page.evaluate(() => L.queue.map(q => String(q.want)));
+      orders.add(w.join()); if (w[0] === '1') firsts++; if (w.slice().sort().join() === '1,2,3,4,push,push') sets++;
+      if (!proof && w[1] !== 'push') { await answerCurrent(false); await click('[data-act="next"]'); await answerCurrent(true); proof = await page.evaluate(() => [String(L.queue[1].want), String(L.queue[L.queue.length - 1].want), L.queue.length]); }
+      await click('[data-go="home"]');
+    }
+    ok(firsts === 8 && sets === 8 && orders.size > 1, '«Name it or push?»: the first hand stays, the other five come in a new order (' + orders.size + ' orders in 8 starts), all four hands of the rule of thumb are there');
+    ok(proof && proof[0] === proof[1] && proof[2] === 7, 'a wrong answer brings back the same kind of hand, wherever it stood ' + JSON.stringify(proof));
+    const checks = new Set();
+    for (let k = 0; k < 5; k++) { await click('.lesson-btn[data-stage="0"][data-lesson="3"]'); await click('[data-act="begin"]'); checks.add(await page.evaluate(() => L.queue.map(q => q.type).join())); await click('[data-go="home"]'); }
+    ok(checks.size > 1, 'a check comes in a new order every time (' + checks.size + ' orders in 5 starts)');
+  }
   await click('.lesson-btn[data-stage="5"][data-lesson="1"]'); await click('[data-act="begin"]');
   let an = await page.evaluate(() => ({ cards: document.querySelectorAll('.cards.hand .card').length, tap: document.querySelectorAll('.cards.hand button.card').length, opts: Array.from(document.querySelectorAll('.opt')).map(o => o.dataset.opt), icons: document.querySelectorAll('.opt .oi svg').length, sum: document.querySelectorAll('.aid .hsum b').length, total: Array.from(document.querySelectorAll('.aid .hsum b')).reduce((n, b) => n + +b.textContent, 0) }));
   ok(an.cards === 9 && an.tap === 0 && an.opts.join() === 'eichle,rose,schelle,schilte,push' && an.icons === 4, 'name-or-push question: nine cards to look at, four suits and Gschobe to choose ' + JSON.stringify(an.opts));
@@ -502,7 +545,7 @@ function expected(q) {
   const weaker = s9.legal.find(i => !s9.good.includes(i));
   await click('button.card[data-group="hand"][data-card="' + weaker + '"]');
   let f9 = await page.evaluate(() => ({ ok: L.ok, verdict: document.querySelector('.verdict').textContent, right: Array.from(document.querySelectorAll('.hand .card.right')).map(e => +e.dataset.card), wrong: Array.from(document.querySelectorAll('.hand .card.wrong')).map(e => +e.dataset.card), text: document.querySelector('.fb').innerText, len: L.queue.length }));
-  ok(f9.ok === false && f9.verdict === 'Allowed, but there is a better card' && JSON.stringify(f9.right) === JSON.stringify(s9.good) && JSON.stringify(f9.wrong) === JSON.stringify([weaker]) && /Schmiere/.test(f9.text) && /Tactic It often pays off, but it is not a rule/.test(f9.text.replace(/\s+/g, ' ')) && f9.len === 7, 'a legal but weaker card: «Allowed, but there is a better card», the better one marked green, labelled as a tactic and not a rule, the question comes back');
+  ok(f9.ok === false && f9.verdict === 'Allowed, but there is a better card' && JSON.stringify(f9.right) === JSON.stringify(s9.good) && JSON.stringify(f9.wrong) === JSON.stringify([weaker]) && /Schmiere/.test(f9.text) && /Tactic/.test(f9.text) && !/not a rule/i.test(f9.text) && f9.len === 7, 'a legal but weaker card: «Allowed, but there is a better card», the better one marked green, tagged as a tactic (the sentence «not a rule» stands once, in the legend of the lesson), the question comes back');
   await overflow('best-card feedback');
   await click('[data-act="next"]');
   await page.evaluate(() => { const q = qSmear(false); q.first = true; L.queue[L.idx] = q; renderLesson(); });
@@ -514,6 +557,16 @@ function expected(q) {
   await click('.lesson-btn[data-stage="8"][data-lesson="0"]');
   ok(await page.evaluate(() => Array.from(document.querySelectorAll('.spk')).map(b => b.dataset.say).join() === 'trumpf-uszieh' && Array.from(document.querySelectorAll('.levels div')).map(d => d.querySelector('.tag').textContent + (d.classList.contains('on') ? '*' : '')).join() === 'Rule,Tactic*,Signal'), 'Trumpf uszieh intro: speaker button, and the legend rule, tactic, signal with «tactic» highlighted');
   await overflow('team play intro');
+  {
+    const legend = async li => { await click('[data-go="home"]'); await click('.lesson-btn[data-stage="8"][data-lesson="' + li + '"]'); return page.evaluate(() => Array.from(document.querySelectorAll('.levels div')).map(d => d.querySelector('.tag').textContent + (d.classList.contains('on') ? '*' : '')).join() + (/Nobody can force/.test(document.querySelector('#app').innerText) ? ' +sentence' : '')); };
+    const lg = [await legend(0), await legend(1), await legend(2), await legend(3)];
+    ok(lg.join(' | ') === 'Rule,Tactic*,Signal +sentence | Tactic* | Signal* | Tactic*,Signal*', 'stage 9: the whole legend opens the first lesson, the others carry one line ' + JSON.stringify(lg));
+    await click('[data-go="home"]'); await click('.lesson-btn[data-stage="8"][data-lesson="4"]'); await click('[data-act="begin"]');
+    const notes = [];
+    for (let k = 0; k < 3; k++) { await answerCurrent(false); notes.push(await page.evaluate(() => { const e = document.querySelector('.fb .kind'); return e ? e.innerText.replace(/\s+/g, ' ') : null; })); await click('[data-act="next"]'); }
+    ok(/not a rule/i.test(notes[0]) && notes.slice(1).every(n => n && /Tactic|Signal/.test(n) && !/not a rule/i.test(n)), 'check of stage 9: «not a rule» with the first answer, the tag alone after that ' + JSON.stringify(notes));
+    await click('[data-go="home"]'); await click('.lesson-btn[data-stage="8"][data-lesson="0"]');
+  }
   await click('[data-act="begin"]');
   await page.evaluate(() => { playing = null; }); await answerCurrent(false); await sleep(300);
   ok(await page.evaluate(() => L.ok === true && L.line[2] === 'trumpf-uszieh' && playing && playing.src.split('/').pop() === 'trumpf-uszieh.mp3' && document.querySelector('.verdict').textContent === 'Correct'), 'leading the Puur: Vreni says «Trumpf uszieh»');
@@ -566,7 +619,7 @@ function expected(q) {
   ok(await page.evaluate(() => L.ok === true && L.line[2] === 'stoeck-ruf' && playing && playing.src.split('/').pop() === 'stoeck-ruf.mp3'), 'Stöck: Vreni calls «Stöck!»');
   await click('[data-go="home"]');
   for (const [si, li] of [[10, 0], [10, 1], [10, 2], [10, 3], [10, 4]]) {
-    r = await playLesson(si, li, li === 2 ? [1] : []); ok(r.score === (li === 2 ? '83%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 2 ? '83% with one wrong' : '100%') + ' (got ' + r.score + ')');
+    r = await playLesson(si, li, li === 2 ? [1] : []); ok(r.score === (li === 2 ? '86%' : '100%'), 'lesson ' + (si + 1) + '.' + (li + 1) + ' -> ' + (li === 2 ? '86% with one wrong of seven' : '100%') + ' (got ' + r.score + ')');
     if (li === 4) ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('Stage 12 is open')), 'check 11.5 opens stage 12');
     await click('[data-go="home"]');
   }
@@ -614,7 +667,7 @@ function expected(q) {
   ok(await page.evaluate(() => Array.from(document.querySelectorAll('.opt')).map(o => o.dataset.opt).join() === 'trump,oben,unde,push' && document.querySelectorAll('.hand .cardbox').length === 9 && !!document.querySelector('.aid .hsum')), 'which game: nine cards and the four answers Trumpf suit, Obenabe, Undenufe, Gschobe');
   await overflow('which-game question');
   await click('[data-opt="unde"]'); await sleep(300);
-  ok(await page.evaluate(() => L.ok === true && L.line[2] === 'undenufe' && playing && playing.src.split('/').pop() === 'undenufe.mp3' && /Tactic It often pays off, but it is not a rule/.test(document.querySelector('.fb').innerText.replace(/\s+/g, ' '))), 'naming Undenufe: Vreni says «Undenufe!», and the answer is labelled a tactic');
+  ok(await page.evaluate(() => L.ok === true && L.line[2] === 'undenufe' && playing && playing.src.split('/').pop() === 'undenufe.mp3' && /Tactic/.test(document.querySelector('.fb .kind').innerText) && !/not a rule/i.test(document.querySelector('.fb').innerText)), 'naming Undenufe: Vreni says «Undenufe!», and the answer is tagged a tactic');
   await click('[data-go="home"]');
   await click('.lesson-btn[data-stage="12"][data-lesson="3"]'); await click('[data-act="begin"]');
   await page.evaluate(() => { const q = qLeadNoT('puur1'); q.first = true; L.queue[0] = q; renderLesson(); });
@@ -623,7 +676,7 @@ function expected(q) {
   await overflow('lead-after-push question');
   await click('button.card[data-group="hand"][data-card="' + s13b.puur + '"]');
   const f13 = await page.evaluate(() => ({ ok: L.ok, verdict: document.querySelector('.verdict').textContent, right: document.querySelectorAll('.hand .card.right').length, text: document.querySelector('.fb').innerText.replace(/\s+/g, ' ') }));
-  ok(f13.ok === false && f13.verdict === 'Allowed, but there is a better card' && f13.right === 2 && /Tactic Signal/.test(f13.text) && /It is not a rule/.test(f13.text), 'leading the lone Puur: «Allowed, but there is a better card», both low cards marked, labelled tactic and signal');
+  ok(f13.ok === false && f13.verdict === 'Allowed, but there is a better card' && f13.right === 2 && /Tactic Signal/.test(f13.text) && !/not a rule/i.test(f13.text), 'leading the lone Puur: «Allowed, but there is a better card», both low cards marked, tagged tactic and signal');
   await overflow('lead-after-push feedback');
   await click('[data-go="home"]');
   await click('.lesson-btn[data-stage="12"][data-lesson="4"]'); await click('[data-act="begin"]');
@@ -724,6 +777,7 @@ function expected(q) {
   await click('[data-go="home"]');
   ok(await page.evaluate(() => G === null && document.querySelector('.lesson-btn[data-stage="13"][data-lesson="0"] .lvl').textContent === '3 rounds played' && document.querySelectorAll('.lesson-btn.done').length === 57), 'home: three rounds played, and all 57 lessons are ticked');
   ok(await page.evaluate(() => document.querySelector('#app').innerText.includes('finished the whole course') && document.querySelector('.later').innerText.includes('That is the whole course')), 'home shows the end-of-course message');
+  ok(await page.evaluate(() => !document.querySelector('#continue-btn')), 'home, course finished: no «Continue» button');
   await click('.lesson-btn[data-stage="13"][data-lesson="0"]');
   ok(await page.evaluate(() => !!document.querySelector('[data-gact="resume"]') && /Round 4/.test(document.querySelector('#app').innerText) && /to 2500/.test(document.querySelector('#app').innerText)), 'whole game: a game that was left can be continued');
   await overflow('whole game, a game to continue');
@@ -777,6 +831,9 @@ function expected(q) {
   ok(d.spk === 38, 'sheet has 38 speaker buttons: 4 suits, 9 cards, 4 words, 7 words of chapter 2, 5 of chapter 3, 9 of chapter 4 (' + d.spk + ')');
   ok(d.clips === (SITE ? 0 : 52), (SITE ? 'public site: recording check removed' : 'recording check lists 52 clips') + ' (' + d.clips + ')');
   await overflow('cards sheet');
+  ok(await page.evaluate(SITE_ONLY => { const top = e => e.getBoundingClientRect().top + scrollY, h = Array.from(document.querySelectorAll('#app h2')), find = t => h.find(x => x.textContent === t); const sh = Array.from(document.querySelectorAll('a.sheet'));
+    return find('Four suits') && top(find('Four suits')) < 420 && top(find('Take it to the table')) > top(find('Chapter 5 · At the table')) && !!find('Two rules to begin with') && !find('Two rules so far')
+      && (!SITE_ONLY || (sh.length === 11 && sh.every(a => a.getBoundingClientRect().height < 90 && a.getBoundingClientRect().height >= 44 && /^Cheat sheet \d+ · .+ \(PDF\)$/.test(a.getAttribute('aria-label'))))); }, SITE), 'the cards page starts with the cards; the cheat sheets come last, one compact line each');
   if (SITE) {
     const pdfs = await page.evaluate(async () => { const out = []; for (const a of document.querySelectorAll('a[download]')) { const r = await fetch(a.href); const b = new Uint8Array(await r.arrayBuffer()); out.push([a.getAttribute('href'), r.status, r.headers.get('content-type'), String.fromCharCode(...b.slice(0, 5)), b.length]); } return out; });
     ok(pdfs.length === 11 && pdfs.every(p => p[1] === 200 && p[3] === '%PDF-' && p[4] > 20000), 'public site: all eleven cheat sheets download as PDF ' + JSON.stringify(pdfs.map(p => [p[0].split('/').pop(), p[1], p[2], p[4]])));

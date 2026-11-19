@@ -477,5 +477,32 @@ for(let k=0;k<700;k++){
 }
 ok(Object.keys(seenGame).length===6&&gameStats.both>0&&gameStats.match>0&&gameStats.pushed>0&&gameStats.weis>0&&gameStats.stoeck>0,'whole games: all six games, pushes, Weis, Stöck, a Match and a photo finish occur '+J(gameStats));
 console.log('whole games: '+J(gameStats));
+// ---- after the critical read-through: a check asks nothing its own stage has not practised
+{
+  const variant=q=>[q.type,q.v,q.want,q.type==='best'||q.type==='tlegal'?q.scn:undefined,['mwinner','mvalue','mcount','mstronger','sure'].includes(q.type)?q.mode:undefined,
+    q.type==='number'?q.covered:undefined,q.type==='tcount'?q.last:undefined,q.type==='mc'?q.prompt:undefined].filter(x=>x!==undefined).join('|');
+  api.STAGES.forEach((st,si)=>{
+    const check=st.lessons.find(l=>l.check);if(!check)return;
+    const practised=new Set(),asked=new Set();
+    for(let r=0;r<250;r++){st.lessons.forEach(ls=>{if(!ls.gen)return;for(let i=0;i<ls.n;i++)(ls.check?asked:practised).add(variant(ls.gen(i)))})}
+    const news=Array.from(asked).filter(k=>!practised.has(k));
+    ok(news.length===0,'stage '+(si+1)+': the check asks only what a lesson of the stage has practised '+J(news));
+  });
+  const wants=(si,li,f)=>{const ls=api.STAGES[si].lessons[li],c={};for(let i=0;i<ls.n;i++){const k=f(ls.gen(i));c[k]=(c[k]||0)+1}return J(Object.keys(c).sort().map(k=>k+'×'+c[k]))};
+  ok(wants(5,1,q=>q.want)===J(['1×1','2×1','3×1','4×1','push×2']),'«Name it or push?» shows each of the four hands of the rule of thumb once '+wants(5,1,q=>q.want));
+  ok(wants(12,2,q=>q.scn)===J(['lead-ass3×2','lead-best×2','lead-puur2×2']),'«After the push: lead Trumpf» practises the rule and both exceptions twice each '+wants(12,2,q=>q.scn));
+  ok(wants(10,3,q=>q.type==='mc'?'mc':q.v)===J(['mc×2','oben×1','othersuit×1','split×1','yes×1']),'«Stöck» shows all four hands '+wants(10,3,q=>q.type==='mc'?'mc':q.v));
+  ok(api.MC_WEIS.length===5&&/first trick/.test(api.STAGES[10].lessons[2].text)&&/round the corner/.test(api.STAGES[10].lessons[0].text),'when a Weis is announced and «not round the corner» stand in a lesson text');
+  // «round» means nine tricks and nothing else; the partner is «he» throughout
+  const texts=[];api.STAGES.forEach(st=>st.lessons.forEach(ls=>{texts.push(ls.text);if(ls.gen)for(let i=0;i<ls.n*8;i++){const q=ls.gen(i%ls.n);texts.push(q.prompt,q.explain,q.hint||'',q.info||'')}}));
+  const all=texts.join(' \n ');
+  ok(!/two rounds|extra round|rounds are/i.test(all),'no lesson calls a lead of Trumpf a «round»');
+  const she=all.match(/partner[^.]{0,90}\b(she|her)\b/gi)||[];
+  ok(she.filter(x=>!/her partner/i.test(x)).length===0,'the partner is «he» in every lesson '+J(she.slice(0,3)));
+  const mixed=[];api.STAGES.forEach((st,si)=>st.lessons.forEach((ls,li)=>{if(ls.mix)mixed.push((si+1)+'.'+(li+1))}));
+  ok(J(mixed)===J(['6.2','9.1','9.2','9.3','10.5','11.1','11.2','12.1','13.2','13.3','13.4','13.5']),'twelve lessons deal their exercises in a new order '+J(mixed));
+  let total=0;api.STAGES.forEach(st=>st.lessons.forEach(ls=>{if(ls.gen)total+=ls.n}));
+  ok(total===383,'the course has 383 exercises ('+total+')');
+}
 ok(api.STAGES.length===14&&api.STAGES[13].ch===5&&api.STAGES[13].lessons.length===1&&api.STAGES[13].lessons[0].game===true,'fourteen stages: the whole game is stage 14');
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

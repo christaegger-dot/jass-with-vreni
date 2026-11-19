@@ -194,6 +194,12 @@ button.card:hover:not(:disabled){transform:translateY(-4px)}
 
 .breaks{display:flex;flex-direction:column;gap:10px}
 .break{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.sheets{display:flex;flex-direction:column;gap:6px}
+a.sheet{display:flex;align-items:center;gap:12px;min-height:48px;padding:6px 12px;border:1px solid var(--felt-line);border-radius:12px;text-decoration:none;color:var(--chalk)}
+a.sheet b{flex:0 0 24px;text-align:center;font-family:var(--font-display);font-weight:400;font-size:20px;color:var(--gold)}
+a.sheet span{flex:1;font-weight:700;line-height:1.25}
+a.sheet i{font-style:normal;font-size:11.5px;font-weight:700;letter-spacing:.8px;color:var(--gold)}
+.goon{margin-top:12px;align-items:center}
 .break h3{font-family:var(--font-display);font-weight:400;font-size:19px;margin:6px 0 0;letter-spacing:.3px}
 .break a:not(.link),.breaks p a{color:var(--gold)}
 .player{width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#000}
@@ -734,6 +740,7 @@ const isBock=(c,gone,t)=>beats(c,t).every(r=>gone.some(g=>g.s===c.s&&g.r===r));
 const theNames=l=>{const n=l.map(x=>'the '+x);return n.length<2?n[0]:n.slice(0,-1).join(', ')+' and '+n[n.length-1]};
 const capFirst=x=>x.charAt(0).toUpperCase()+x.slice(1);
 // A rule is a must. A tactic often pays off. A signal tells your partner something. Chapter 3 teaches tactics and signals only.
+const KIND_TAG={tactic:'<span class="tag">Tactic</span>',signal:'<span class="tag win">Signal</span>',both:'<span class="tag">Tactic</span> <span class="tag win">Signal</span>'};
 const KIND_NOTE={tactic:'<span class="tag">Tactic</span> It often pays off, but it is not a rule.',
   signal:'<span class="tag win">Signal</span> A message to your partner, not a rule. Some tables agree on other signals.',
   both:'<span class="tag">Tactic</span> <span class="tag win">Signal</span> It often pays off, and it tells your partner something. It is not a rule.'};
@@ -791,7 +798,7 @@ function qDraw(){
   return bestQ({scn:'draw',trump:t,hand,good:c=>isT(c)&&c.r==='U',
     prompt:'You named Trumpf, and you play the first card. Which one?',
     hint:'You hold four Trumpf, and the Puur is one of them. What could happen to your '+A+' while the other team still holds Trumpf?',
-    explain:'A good start is the Puur. Everybody who holds Trumpf has to play one, so the other team loses theirs, and the Puur cannot lose. Once their Trumpf are gone, they cannot trump your '+A+'. That is Trumpf uszieh. Two rounds are usually enough.',
+    explain:'A good start is the Puur. Everybody who holds Trumpf has to play one, so the other team loses theirs, and the Puur cannot lose. Once their Trumpf are gone, they cannot trump your '+A+'. That is Trumpf uszieh. Leading Trumpf twice is usually enough.',
     line:['Trumpf uszieh!','Draw the Trumpf!','trumpf-uszieh']});
 }
 function qCash(){
@@ -984,8 +991,6 @@ const MC_WEIS=[
     hint:'Nobody should know too early that you hold both.',explain:'You call «Stöck» when you play the second of the two cards, König or Ober. Then the 20 points are yours.'},
   {prompt:'The other team has the higher Weis. You hold Stöck. What happens to your 20 points?',options:['They count anyway','They are lost','They go to the other team','They count only half'],answer:0,
     hint:'Stöck are not a Weis.',explain:'Stöck are not a Weis, so the other team’s Weis cannot push them aside. Your 20 points count.'},
-  {prompt:'It is Obenabe, and you hold König and Ober of Rose. Do you have Stöck?',options:['No. Without a Trumpf suit there are no Stöck','Yes, 20 points','Yes, but only if I announce it in the first trick','Only if my partner agrees'],answer:0,
-    hint:'Stöck belong to the Trumpf suit.',explain:'Stöck are König and Ober of the Trumpf suit. Obenabe and Undenufe have no Trumpf suit, so there are no Stöck.'},
   {prompt:'You hold the 7, the 6 and the Ass of one suit. Is that a Weis?',options:['No. A row does not go round the corner','Yes, three in a row: 20','Yes, but only in Undenufe','Yes, but only in the Trumpf suit'],answer:0,
     hint:'The row runs from the Ass down to the 6, and it ends there.',explain:'A row follows Ass, König, Ober, Under, Banner, 9, 8, 7, 6 and stops at both ends. From the 6 back to the Ass is round the corner, and that does not count.'},
   {prompt:'In the Trumpf suit the Under is the Puur, the strongest card. Which order do rows follow there?',options:['The same as everywhere: Ass, König, Ober, Under, Banner, 9','The Trumpf order: Puur, Nell, Ass, König','Rows do not count in the Trumpf suit','Whichever gives more points'],answer:0,
@@ -1132,10 +1137,10 @@ function qLeadT(v){                         // 'best' 'puur2' 'ass3': you hold T
   }
   const tr=TRUMP_ORDER.filter(r=>holds(hand,t,r)),want=v==='best'?tr[0]:tr[1],tn=suitOf(t).name,nm=tShort({s:t,r:want},t);
   return bestQ({scn:'lead-'+v,trump:t,hand,good:c=>c.s===t&&c.r===want,info:PUSHED(tn+' as Trumpf'),prompt:LEAD_PROMPT,kind:'tactic',
-    hint:v==='best'?'Your partner chose '+tn+' because she is strong there. Which of your cards helps her most to pull the other team’s Trumpf out?'
+    hint:v==='best'?'Your partner chose '+tn+' because he is strong there. Which of your cards helps him most to pull the other team’s Trumpf out?'
       :v==='puur2'?'You hold two Trumpf, and one of them cannot be beaten by anything. Is that card in a hurry?'
       :'Puur and Nell are still out, and both of them beat your Ass. Which Trumpf can you lead without risking 11 points?',
-    explain:v==='best'?'Lead Trumpf, and lead your best one: the '+nm+'. Your partner named '+tn+' because she is strong there. Your lead makes the other team give up Trumpf, and she can go on drawing them.'
+    explain:v==='best'?'Lead Trumpf, and lead your best one: the '+nm+'. Your partner named '+tn+' because he is strong there. Your lead makes the other team give up Trumpf, and he can go on drawing them.'
       :v==='puur2'?'With the Puur and just one more Trumpf, the convention is to lead the smaller one: the '+nm+'. Nothing beats the Puur, so he is in no hurry. Keep him for a trick where he is needed.'
       :'With the Ass and two more Trumpf, the usual lead is the second-highest: the '+nm+'. Puur and Nell are still out, and both beat your Ass. Keep its 11 points until those two have been played.',
     line:v==='best'?['Trumpf uszieh!','Help your partner draw them.','trumpf-uszieh']:null});
@@ -1174,7 +1179,7 @@ function qLeadM(v,m){                       // 'low' 'top': your partner named O
     hint:v==='top'?'Look at your '+Xn+'. Do you hold the two strongest cards of that suit in '+MODE_NAME[m]+'? Think of your sure tricks.'
       :'Which suit is your strongest? You hold four cards there. And which of them is the weakest in '+MODE_NAME[m]+'?',
     explain:v==='top'?'You hold the '+nm(o[0])+' and the '+nm(o[1])+' of '+Xn+': the two top cards in '+MODE_NAME[m]+', and two sure tricks. That is the exception to the weakest card. Take them, the '+nm(o[0])+' first.'
-      :'Your partner named '+MODE_NAME[m]+'. The usual first card is the weakest card of your strongest suit: the '+nm(want)+' of '+Xn+'.'+(m==='unde'?' In Undenufe the weakest card is the highest one.':'')+' It shows her where you hold the most cards, and she can play that suit back to you.',
+      :'Your partner named '+MODE_NAME[m]+'. The usual first card is the weakest card of your strongest suit: the '+nm(want)+' of '+Xn+'.'+(m==='unde'?' In Undenufe the weakest card is the highest one.':'')+' It shows him where you hold the most cards, and he can play that suit back to you.',
     line:v==='top'?null:['Aazieh!','Lead your strong suit.','aazieh']});
 }
 
@@ -1353,9 +1358,9 @@ const STAGES=[
     {title:'Vorhand speaks first',help:0,n:6,intro:'seats',
       text:'The cards are dealt, nine for everyone. The player to the right of the dealer is the Vorhand{vorhand}. She speaks first: either she names Trumpf, or she says Gschobe{gschobe} and pushes the choice to her partner. He must then name Trumpf. And whatever happens, Vorhand plays the first card.',
       gen:i=>qMC(MC_VORHAND,i,true)},
-    {title:'Name it or push?',help:0,n:6,
+    {title:'Name it or push?',help:0,n:6,mix:true,
       text:'When do you name Trumpf yourself? Vreni’s rule of thumb: when one suit gives you the Puur with three more cards, or Nell and Ass with three more, or Puur, Nell and Ass together. Puur and Nell with one more card will also do, if you hold two Asses elsewhere. Anything less: Gschobe.',
-      gen:i=>i%2?qAnnounce('push'):qAnnounce([1,3,2][(i/2)|0])},
+      gen:i=>qAnnounce([1,'push',3,'push',2,4][i%6])},
     {title:'When your partner pushes',help:1,n:6,
       text:'Now the other side of it. Your partner said Gschobe, and you must name Trumpf. You cannot push back, so take your strongest suit. That is usually your longest one, and better still with the Puur or the Nell in it.',
       gen:()=>qPushed()},
@@ -1385,13 +1390,13 @@ const STAGES=[
       gen:i=>[()=>qBock(false),()=>qBock(true),()=>qMyBock(),()=>qTrumpCount(),()=>qMyBock()][i%5]()}
   ]},
   {ch:3,title:'Team play',blurb:'Tactics and signals that turn two players into a team. None of them is a rule.',lessons:[
-    {title:'Trumpf uszieh',help:0,n:6,intro:'levels-tactic',
-      text:'You named Trumpf, so you probably hold the most of it. Often the best start is to lead Trumpf{trumpf-uszieh}: it pulls the other team’s Trumpf out, and after that they cannot trump your Asses. Two rounds are usually enough. Every extra round also costs your partner a Trumpf. Once the other team has none left, stop, and play your Bock.',
+    {title:'Trumpf uszieh',help:0,n:6,mix:true,intro:'levels-tactic',
+      text:'You named Trumpf, so you probably hold the most of it. Often the best start is to lead Trumpf{trumpf-uszieh}: it pulls the other team’s Trumpf out, and after that they cannot trump your Asses. Leading Trumpf twice is usually enough. Every further lead also costs your partner a Trumpf. Once the other team has none left, stop, and play your Bock.',
       gen:i=>i%2?qCash():qDraw()},
-    {title:'Schmiere',help:0,n:6,intro:'levels-tactic',
+    {title:'Schmiere',help:0,n:6,mix:true,intro:'levels-tactic',
       text:'Jass is played for points, and you play it as a team. When your partner is sure to win the trick, put points on it: a Banner, a König. That is Schmiere{schmiere}. When the other team is sure to win it, give your smallest card. Two things stay true: you still have to follow suit, and a card that can win a trick of its own is usually worth keeping.',
       gen:i=>qSmear(i%2===0)},
-    {title:'Verwerfe',help:1,n:6,intro:'levels-signal',
+    {title:'Verwerfe',help:1,n:6,mix:true,intro:'levels-signal',
       text:'Sometimes you cannot follow suit and cannot trump. Then you throw a card away{verwerfe}. Throw away what costs nothing, from your weakest suit. Your partner is watching: the card tells him «I am weak here», and he will usually not lead that suit to you. It is a hint between partners, not an order.',
       gen:i=>i%3===2?qRead():qDiscard()},
     {title:'Aazieh',help:1,n:6,intro:'levels-both',
@@ -1414,7 +1419,7 @@ const STAGES=[
     {title:'Undenufe: the points',help:1,n:6,intro:'unde',
       text:'In Undenufe the 6 does the job of the Ass, so it also gets its points: the 6 is worth 11 and the Ass nothing. The 8 is worth 8 again. König, Ober, Under and Banner keep their points.',
       gen:i=>i%2?qMCount('unde'):qMValue('unde')},
-    {title:'Three games, one table',help:1,n:6,
+    {title:'Three games, one table',help:1,n:6,mix:true,
       text:'Now mixed. Before every trick, read the gold tag: is a suit Trumpf, or is it Obenabe, or Undenufe? The same four cards can have three different winners.',
       gen:i=>[()=>qMWinner('oben'),()=>qMWinner('unde'),()=>qTWinner()][i%3]()},
     {title:'Check: no Trumpf',help:2,n:10,check:true,
@@ -1422,32 +1427,32 @@ const STAGES=[
       gen:i=>[()=>qMWinner('oben'),()=>qMWinner('unde'),()=>qMValue('unde'),()=>qMCount('oben'),()=>qMStronger('unde'),()=>qMCount('unde'),()=>qMWinner('unde'),()=>qMValue('oben'),()=>qTWinner(),()=>qMWinner('oben')][i%10]()}
   ]},
   {ch:4,title:'Weis and Stöck',blurb:'Points for the cards you are dealt, before a single trick is won.',lessons:[
-    {title:'Three in a row',help:0,n:6,intro:'weis',
-      text:'A Weis{wys} is a bonus for the cards you were dealt. Three cards in a row in one suit are worth 20, four are worth 50, five are worth 100. The row follows Ass, König, Ober, Under, Banner, 9, 8, 7, 6, also in the Trumpf suit, and it must have no gap.',
-      gen:i=>qWeisFind(['seq3','none','seq4','seq3','seq5','none'][i%6])},
-    {title:'Four of a kind',help:0,n:6,intro:'weis',
+    {title:'Three in a row',help:0,n:7,mix:true,intro:'weis',
+      text:'A Weis{wys} is a bonus for the cards you were dealt. Three cards in a row in one suit are worth 20, four are worth 50, five are worth 100. The row follows Ass, König, Ober, Under, Banner, 9, 8, 7, 6, also in the Trumpf suit. It must have no gap, and it does not go round the corner: 7, 6, Ass is no row.',
+      gen:i=>i%7===3?qMC(MC_WEIS,3,true):i%7===5?qMC(MC_WEIS,4,true):qWeisFind(['seq3','none','seq4','','seq5','','none'][i%7])},
+    {title:'Four of a kind',help:0,n:6,mix:true,intro:'weis',
       text:'The other kind of Weis is four of a kind: the same card in all four suits. Any four of a kind are worth 100, from four Asses down to four sixes. Two are worth more: four nines 150, and four Under 200. Three of a kind are worth nothing.',
       gen:i=>qWeisFind(['four','three','foursmall','seq4','four','none'][i%6])},
-    {title:'Whose Weis counts?',help:1,n:6,
-      text:'Only one team writes its Weis: the team with the single highest one. That team then writes everything both partners hold, and the other team writes nothing. Same value? A row beats four of a kind. Two equal rows? The higher top card wins, and after that the Trumpf suit.',
-      gen:i=>i%2?qWeisWrite():qWeisCmp(['value','kind','top'][(i/2)|0])},
+    {title:'Whose Weis counts?',help:1,n:7,
+      text:'You announce a Weis in the first trick, when you play your card. Only one team writes its Weis: the team with the single highest one. That team then writes everything both partners hold, and the other team writes nothing. Same value? A row beats four of a kind. Two equal rows? The higher top card wins, and after that the Trumpf suit.',
+      gen:i=>[()=>qWeisCmp('value'),qWeisWrite,()=>qWeisCmp('kind'),()=>qMC(MC_WEIS,0,true),()=>qWeisCmp('top'),qWeisWrite,()=>qWeisCmp('trump')][i%7]()},
     {title:'Stöck',help:1,n:6,
       text:'One more bonus, and it is not a Weis. König and Ober of the Trumpf suit in one hand are called Stöck{stoeck}, worth 20 points. You call it when you play the second of the two. Stöck always count, whatever Weis the other team holds. Without a Trumpf suit there are no Stöck.',
-      gen:i=>i%2?qMC(MC_WEIS,1+((i/2)|0),true):qStoeck(['yes','othersuit','oben'][(i/2)|0])},
+      gen:i=>[()=>qStoeck('yes'),()=>qMC(MC_WEIS,1,true),()=>qStoeck('othersuit'),()=>qMC(MC_WEIS,2,true),()=>qStoeck('split'),()=>qStoeck('oben')][i%6]()},
     {title:'Check: Weis and Stöck',help:2,n:10,check:true,
       text:'Ten questions, no help. Get eight right, and you know every way to score before the first trick.',
       gen:i=>[()=>qWeisFind('seq3'),()=>qWeisFind(pick(['four','four','foursmall'])),()=>qWeisCmp('kind'),()=>qStoeck('yes'),()=>qWeisFind('none'),()=>qWeisWrite(),()=>qStoeck(pick(['split','othersuit','oben'])),()=>qWeisFind('seq4'),()=>qMC(MC_WEIS,rnd(MC_WEIS.length),true),()=>qWeisCmp(pick(['value','top','trump']))][i%10]()}
   ]},
   {ch:4,title:'Scoring like a local',blurb:'Single, double, triple, and the slate that remembers everything.',lessons:[
-    {title:'Single, double, triple',help:0,n:6,intro:'factors',
+    {title:'Single, double, triple',help:0,n:6,mix:true,intro:'factors',
       text:'You know the cards, the games and the bonuses. What is left is the slate, the Jasstafel{jasstafel}, which lies next to the green mat, the Jassteppich{jassteppich}. At most tables not every game is worth the same. Eichle and Rose count single. Schelle and Schilte count double. Obenabe and Undenufe count triple.',
       gen:i=>qFactor(['eichle','schelle','oben','rose','unde','schilte'][i%6])},
     {title:'What goes on the slate',help:0,n:6,intro:'factors',
       text:'At the end of a round, add up what your team made: the points in your tricks, the 5 for the last trick, your Weis if you had the highest, and 20 for Stöck. Then multiply all of it by the factor of the game. That number goes on the slate.',
       gen:i=>qWrite(['plain','plain','weis','plain','stoeck','weis'][i%6],['rose','schilte','eichle','unde','schelle','oben'][i%6])},
-    {title:'Match',help:1,n:6,
+    {title:'Match',help:1,n:7,
       text:'Win all nine tricks and you have a Match{match}: 100 points on top, 257 instead of 157. It is the tricks that count, not the points. If the other team takes one single trick, even an empty one, there is no Match. A Match is multiplied like everything else. And when the team that did not name the game takes all nine, it is a Kontermatch{kontermatch}, and it counts just the same.',
-      gen:i=>[()=>qMatchYN('zero'),()=>qWrite('match'),()=>qMatchYN('yes'),()=>qMC(MC_MATCH,0,true),()=>qWrite('match'),()=>qMatchYN('close')][i%6]()},
+      gen:i=>[()=>qMatchYN('zero'),()=>qWrite('match'),()=>qMatchYN('yes'),()=>qMC(MC_MATCH,0,true),()=>qMC(MC_MATCH,1,true),()=>qMatchYN('close'),()=>qMC(MC_MATCH,2,true)][i%7]()},
     {title:'The finish line',help:1,n:8,
       text:'A game of Schieber goes on round after round, until one team reaches the total you agreed on. If everything counts single, that is 1000. With single, double and triple it is 2500. The moment your team has enough, you thank the other team{bedanke}, even in the middle of a round, and the game is over. Thank too early, and you lose it. If both teams get there in the first trick of a round, the order decides: Stöck first, then Weis, then tricks.',
       gen:i=>qMC(MC_END,i,true)},
@@ -1459,17 +1464,17 @@ const STAGES=[
     {title:'Sure tricks',help:0,n:6,intro:'sure',
       text:'You know all six games now. Which one do you name? Start by counting. Without Trumpf nobody can cut in, so a card that nobody can beat is a sure trick, as long as you are the one who leads. In Obenabe{obenabe} count from the top of each suit: the Ass is one, Ass and König are two, and you stop at the first gap. In Undenufe{undenufe} count the same way from the bottom: the 6, then the 7.',
       gen:i=>qSure(i%2?'unde':'oben')},
-    {title:'Which game?',help:0,n:6,intro:'levels-tactic',
+    {title:'Which game?',help:0,n:6,mix:true,intro:'levels-tactic',
       text:'Here is the rule of thumb for Vorhand. Count your sure tricks. With five, better six, from the top you name Obenabe. With five or six from the bottom you name Undenufe. Otherwise look for a Trumpf suit, the way you learned it in Stage 6. And if nothing fits, you push{gschobe}.',
       gen:i=>qGame(['oben','push','unde','trump','oben','unde'][i%6])},
-    {title:'After the push: lead Trumpf',help:1,n:6,intro:'levels-tactic',
-      text:'You pushed, your partner named a Trumpf suit, and still you play the first card: Vorhand always leads. She chose that suit because she is strong in it. So help her draw the Trumpf{trumpf-uszieh}: lead your best one. Two exceptions have settled in. With the Puur and just one more Trumpf, lead the smaller one. With the Ass and two more, lead the second-highest.',
-      gen:i=>qLeadT(['best','puur2','best','ass3','best','puur2'][i%6])},
-    {title:'After the push: no Trumpf to lead',help:1,n:6,intro:'levels-both',
+    {title:'After the push: lead Trumpf',help:1,n:6,mix:true,intro:'levels-tactic',
+      text:'You pushed, your partner named a Trumpf suit, and still you play the first card: Vorhand always leads. Your partner chose that suit because he is strong in it. So help him draw the Trumpf{trumpf-uszieh}: lead your best one. Two exceptions have settled in. With the Puur and just one more Trumpf, lead the smaller one. With the Ass and two more, lead the second-highest.',
+      gen:i=>qLeadT(['best','puur2','ass3','best','ass3','puur2'][i%6])},
+    {title:'After the push: no Trumpf to lead',help:1,n:6,mix:true,intro:'levels-both',
       text:'Sometimes you cannot help with Trumpf. If the Puur is your only Trumpf, keep him and lead a low card, 6 to 9, from your strongest suit. If you hold no Trumpf at all, lead a König, an Ober or an Under. These are conventions that Swiss tables have settled on. Your table may have its own.',
       gen:i=>qLeadNoT(i%2?'none':'puur1')},
-    {title:'After a pushed Obenabe or Undenufe',help:1,n:6,intro:'levels-both',
-      text:'Your partner can also answer your push with Obenabe or Undenufe. Then the usual first card is the weakest card of your strongest suit. It shows her where you hold the most. One exception: with the two top cards of a suit, Ass and König in Obenabe or 6 and 7 in Undenufe, you hold two sure tricks. Take them.',
+    {title:'After a pushed Obenabe or Undenufe',help:1,n:6,mix:true,intro:'levels-both',
+      text:'Your partner can also answer your push with Obenabe or Undenufe. Then the usual first card is the weakest card of your strongest suit. It shows him where you hold the most. One exception: with the two top cards of a suit, Ass and König in Obenabe or 6 and 7 in Undenufe, you hold two sure tricks. Take them.',
       gen:i=>qLeadM(['low','low','top'][i%3],i%2?'unde':'oben')},
     {title:'Check: naming and leading',help:2,n:10,check:true,
       text:'Ten situations, no help. Get eight right, and you can open a round like a local.',
@@ -1687,7 +1692,8 @@ const SHEETS=[
 ];
 function sheetsHTML(){
   if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
-  return SHEETS.map(x=>'<div class="break"><a class="ghost link" href="'+x[0]+'" download>Cheat sheet '+x[1]+' (PDF)</a><span class="small dim">'+x[2]+'</span></div>').join('');
+  return '<div class="sheets">'+SHEETS.map(x=>{const k=x[1].split(' · ');
+    return '<a class="sheet" href="'+x[0]+'" download aria-label="Cheat sheet '+x[1]+' (PDF)" title="'+x[2]+'"><b>'+k[0]+'</b><span>'+k[1]+'</span><i>PDF</i></a>'}).join('')+'</div>';
 }
 const extLink=(url,label)=>'<a class="ghost link" href="'+url+'">'+label+'</a>';
 const songLink=label=>extLink(SONG_URL,label);
@@ -1729,7 +1735,7 @@ function suitsHTML(){return '<div class="suits">'+SUITS.map(s=>'<div class="suit
 function facesHTML(suit){
   return '<div class="deckrow">'+RANKS.map(r=>'<div class="cardbox"><span class="card">'+cardSVG({s:suit,r:r.id})+'</span><span class="cap">'+r.name+'</span></div>').join('')+'</div>';
 }
-function introVisual(kind){
+function introVisual(kind,compact){
   if(kind==='suits')return suitsHTML();
   if(kind==='faces')return facesHTML('rose');
   if(kind==='ladder')return ladderHTML();
@@ -1743,9 +1749,10 @@ function introVisual(kind){
   if(kind==='bock')return '<div class="deckrow">'+[['A','played'],['K','<span class="tag win">Bock</span>'],['O',''],['U','']].map(x=>'<div class="cardbox"><span class="card" style="width:64px'+(x[0]==='A'?';opacity:.4':'')+'">'+cardSVG({s:'rose',r:x[0]})+'</span><span class="cap">'+x[1]+'</span></div>').join('')+'</div><p class="small dim">The Ass of Rose has been played. Now the König is the highest Rose left.</p>';
   if(kind.indexOf('levels-')===0){
     const k=kind.slice(7),on=x=>k===x||k==='both'?' class="on"':'';
-    return '<div class="levels"><div><span class="tag rule">Rule</span><span>what you must do: follow suit, no undertrumping</span></div>'
-      +'<div'+on('tactic')+'><span class="tag">Tactic</span><span>what often pays off</span></div>'
-      +'<div'+on('signal')+'><span class="tag win">Signal</span><span>what your card tells your partner</span></div></div>'
+    const tactic='<div'+on('tactic')+'><span class="tag">Tactic</span><span>what often pays off</span></div>',signal='<div'+on('signal')+'><span class="tag win">Signal</span><span>what your card tells your partner</span></div>';
+    // The whole legend opens the first such lesson of a stage. After that one line is enough.
+    if(compact)return '<div class="levels">'+(k==='signal'?'':tactic)+(k==='tactic'?'':signal)+'</div>';
+    return '<div class="levels"><div><span class="tag rule">Rule</span><span>what you must do: follow suit, no undertrumping</span></div>'+tactic+signal+'</div>'
       +'<p class="small dim" style="margin-top:8px">This lesson is about '+(k==='both'?'a tactic that is also a signal':k==='signal'?'a signal':'a tactic')+'. Nobody can force you to play this way.</p>';
   }
   if(kind==='sure'){
@@ -1776,16 +1783,19 @@ function renderHome(){
   const all=STAGES.every((_,i)=>stagePassed(i)),ch1=stagePassed(2);
   const hello=all?'You have finished the whole course: cards, Trumpf, tactics, Weis, the slate and the right call. Now find three people and a deck of cards. The lions of Winterthur have been warned.'
     :stagePassed(12)?'You can name the game and open a round. Now play it all: a whole game against the lions of Winterthur, with Weis, Stöck and the slate.'
-    :stagePassed(11)?'You know every rule of the game, and you can keep the slate. Next: which game to name, and which card to lead when your partner had to choose.'
+    :stagePassed(11)?'You know every rule of the game, and you can keep the slate. You could sit down at a real table now. Next: which game to name, and which card to lead when your partner had to choose.'
     :stagePassed(10)?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. Next comes the slate: single, double, triple.'
     :stagePassed(8)?'Chapter 3 is done. You count the Trumpf, you know your Bock and you feed your partner. The lions of Winterthur are getting nervous. Now the full game: two more ways to play, and points before the first card.'
-    :stagePassed(6)?'You have played a whole round, and you can sit down at a real table now. Chapter 3 shows how good players think. It is mostly counting.'
+    :stagePassed(6)?'You have played a whole round: that is the heart of the game. Chapter 3 shows how good players think. It is mostly counting.'
     :stagePassed(4)?'You know what you may play. Now you learn to speak first: Ansagen or Schieben. After that we play a whole round. I am already setting the table.'
     :ch1?'Chapter 1 is yours. Now comes Trumpf, and half of what you just learned gets turned on its head. Do not worry. It happens to everyone.'
     :'Your family took the recipes to America and left the card game behind. Sit down, we’ll fix that. One small step at a time.';
   app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni('happy')+'<div class="bubble">'
     +'<p class="chalk">Grüezi mitenand! Chömed, mer jassed.'+spk('gruezi')+'<span class="tr">Hello everyone! Come on, let’s play. · I’m Vreni.</span></p>'
-    +'<p>'+hello+'</p>'+(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
+    +'<p>'+hello+'</p>'
+    +(next?'<div class="actions goon"><button class="primary" type="button" id="continue-btn" data-stage="'+next[0]+'" data-lesson="'+next[1]+'">'+(Object.keys(S.best).length?'Continue':'Start')+'</button>'
+      +'<span class="small dim">Stage '+(next[0]+1)+' · '+STAGES[next[0]].lessons[next[1]].title+'</span></div>':'')
+    +(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
     +'<div class="path">'+path
     +'<p class="later"><b>That is the whole course.</b> Come back whenever you like: the round in Stage 7 and the game in Stage 14 deal new cards every time.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
@@ -1800,7 +1810,6 @@ function renderDeck(){
   L=null;R=null;G=null;
   app.innerHTML='<div class="slate" style="display:flex;flex-direction:column;gap:14px">'
     +'<div><h1>The cards</h1><p class="dim">Everything you have met so far. Come back whenever you like.</p></div>'
-    +'<div class="breaks"><h2>Take it to the table</h2>'+sheetsHTML()+'</div>'
     +'<div><h2>Four suits</h2>'+suitsHTML()+'</div>'
     +'<div><h2>Nine cards in each suit</h2><div class="scroll"><table class="sheet-table"><thead><tr><th>Card</th><th>Say it</th><th>Like</th><th>Points</th></tr></thead><tbody>'
     +RANKS.map(r=>'<tr><td><b>'+r.name+'</b>'+spk(r.id)+'</td><td class="say">'+(r.say||(r.ch+' · '+r.chSay))+'</td><td>'+r.en+'</td><td class="n">'+r.pts+'</td></tr>').join('')
@@ -1811,7 +1820,7 @@ function renderDeck(){
     +'<div><h2>Words you will hear</h2><div class="scroll"><table class="sheet-table"><tbody>'
     +WORDS.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')
     +'</tbody></table></div></div>'
-    +'<div><h2>Two rules so far</h2><p>1. If you hold the suit that was led, you must play it.</p><p>2. The highest card of the suit led wins the trick. Other suits never win.</p>'
+    +'<div><h2>Two rules to begin with</h2><p>1. If you hold the suit that was led, you must play it.</p><p>2. The highest card of the suit led wins the trick. Other suits never win.</p>'
     +'<p class="small dim">We play counter-clockwise. Trumpf arrives in Chapter 2 and bends both rules.</p></div>'
     +(stageOpen(3)?'<div><h2>Chapter 2 · Trumpf</h2><p class="dim small">In the Trumpf suit the order and the points change. Shown here with Schilte as Trumpf, from strongest to weakest.</p>'+trumpCardsHTML('schilte')
       +'<div style="margin-top:10px">'+trumpValuesHTML()+'</div>'
@@ -1819,7 +1828,7 @@ function renderDeck(){
       +'<p class="small dim" style="margin-top:8px">Three rules. You may always play a Trumpf instead of following suit. If Trumpf is led, you must play Trumpf, unless the Puur is your only one. And never play a lower Trumpf on a trick that is already trumped.</p>'
       +(stageOpen(5)?'<p class="small dim" style="margin-top:8px">Before the first card, Vorhand names Trumpf or says Gschobe and pushes the choice to her partner. Rule of thumb: name it with the Puur and three more, with Nell, Ass and three more, with Puur, Nell and Ass, or with Puur, Nell and one more plus two Asses elsewhere. Anything less: push.</p>':'')+'</div>':'')
     +(stageOpen(7)?'<div><h2>Chapter 3 · Playing well</h2><div class="scroll"><table class="sheet-table"><tbody>'+WORDS3.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
-      +'<p class="small dim" style="margin-top:8px">Count the Trumpf: nine, minus the ones played, minus your own. When you named Trumpf, it often pays to draw it, usually for two rounds, and to stop once the other team has none. Put points on a trick your partner is sure to win, and nothing on one the other team wins. Throw away small cards from your weakest suit: it tells your partner where you are weak. Lead low from König and Ober to lure the Ass out. All of this is tactic and signal, not rule.</p></div>':'')
+      +'<p class="small dim" style="margin-top:8px">Count the Trumpf: nine, minus the ones played, minus your own. When you named Trumpf, it often pays to draw it, usually by leading Trumpf twice, and to stop once the other team has none. Put points on a trick your partner is sure to win, and nothing on one the other team wins. Throw away small cards from your weakest suit: it tells your partner where you are weak. Lead low from König and Ober to lure the Ass out. All of this is tactic and signal, not rule.</p></div>':'')
     +(stageOpen(9)?'<div><h2>Chapter 4 · The full game</h2><div class="scroll"><table class="sheet-table"><tbody>'+WORDS4.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
       +'<p class="small dim" style="margin:10px 0 4px">Obenabe, from strongest to weakest:</p>'+modeLadderHTML('oben')+modeValuesHTML('oben')
       +'<p class="small dim" style="margin:10px 0 4px">Undenufe, from strongest to weakest:</p>'+modeLadderHTML('unde')+modeValuesHTML('unde')
@@ -1827,6 +1836,7 @@ function renderDeck(){
       +(stageOpen(11)?'<p class="small dim" style="margin:10px 0 4px">The slate:</p>'+factorTableHTML()+'<div class="scroll" style="margin-top:8px"><table class="sheet-table"><tbody>'+WORDS5.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
         +'<p class="small dim" style="margin-top:8px">One round is worth 157, a Match 257. Everything a team makes in a round is multiplied by the factor of the game. The first team to reach the agreed total wins: 1000 if everything counts single, 2500 with factors. If both get there in the first trick of a round, the order is Stöck, Weis, Stich.</p>':'')+'</div>':'')
     +(stageOpen(12)?'<div><h2>'+CHAPTERS[5]+'</h2><p class="small dim">Sure tricks without Trumpf: count from the top of each suit and stop at the first gap. In Undenufe the top is the 6. With five, better six, sure tricks you can name Obenabe or Undenufe. After a push, Vorhand still leads: usually her best Trumpf. With the Puur and one more she leads the smaller one, with the Ass and two more the second-highest. With the Puur alone she leads a low card from her strongest suit, and with no Trumpf a König, an Ober or an Under. After a pushed Obenabe or Undenufe she leads the weakest card of her strongest suit, unless she holds its two top cards. All of this is rule of thumb and convention, not rule.</p></div>':'')
+    +'<div class="breaks"><h2>Take it to the table</h2><p class="dim small">Eleven cheat sheets to print, one page each.</p>'+sheetsHTML()+'</div>'
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';
@@ -1839,7 +1849,10 @@ function startLesson(si,li){
   G=null;
   if(ls.round){startRound(si,li);return}
   R=null;
-  const queue=[];for(let i=0;i<ls.n;i++){const q=ls.gen(i);q.first=true;queue.push(q)}
+  let queue=[];for(let i=0;i<ls.n;i++){const q=ls.gen(i);q.first=true;q.gi=i;queue.push(q)}
+  // A check comes in a new order every time. In a lesson marked «mix» the first exercise stays where it is and the rest is shuffled,
+  // so that the right answer never simply alternates.
+  if(ls.check)queue=shuffle(queue);else if(ls.mix)queue=[queue[0]].concat(shuffle(queue.slice(1)));
   L={si,li,ls,queue,idx:0,marks:[],right:0,help:ls.help,phase:'intro',hinted:false,sel:[],chosen:null,ok:null};
   renderLesson();
 }
@@ -1848,7 +1861,7 @@ function renderLesson(){
   if(L.phase==='intro'){
     app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni('happy')+'<div class="bubble">'
       +'<h2>'+L.ls.title+'</h2><p>'+L.ls.text.replace(/\{([a-z-]+)\}/g,(m,k)=>spk(k))+'</p></div></div>'
-      +(L.ls.intro?'<div style="margin-top:14px">'+introVisual(L.ls.intro)+'</div>':'')
+      +(L.ls.intro?'<div style="margin-top:14px">'+introVisual(L.ls.intro,st.lessons.findIndex(l=>l.intro&&l.intro.indexOf('levels-')===0)!==L.li)+'</div>':'')
       +'<div class="actions" style="margin-top:16px"><button class="primary" type="button" data-act="begin">Start</button>'
       +'<button class="ghost" type="button" data-go="home">Not now</button></div></div>';
     return;
@@ -1911,7 +1924,7 @@ function renderLesson(){
     fb='<div class="slate fb'+(L.ok?'':' no')+'"><div class="vreni-row">'+vreni(L.ok?'happy':'oops','sm')+'<div class="bubble">'
       +'<span class="verdict">'+(L.ok?'Correct':(L.verdict||'Not quite'))+'</span>'
       +'<p class="chalk">'+line[0]+'<span class="tr">'+line[1]+'</span></p><p>'+(L.pre||'')+q.explain+'</p>'
-      +(q.kind?'<p class="small dim kind">'+KIND_NOTE[q.kind]+'</p>':'')
+      +(q.kind?'<p class="small dim kind">'+(L.noteFull?KIND_NOTE[q.kind]:KIND_TAG[q.kind])+'</p>':'')
       +(!L.ok&&q.first?'<p class="small dim">This one comes back at the end.</p>':'')
       +'<div class="actions" style="margin-top:10px"><button class="primary" type="button" data-act="next" id="next-btn">'+(L.idx+1<L.queue.length?'Next':'Finish')+'</button></div>'
       +'</div></div></div>';
@@ -1967,7 +1980,7 @@ function aidHTML(q){
 }
 function answer(ok){
   const q=L.queue[L.idx];L.ok=ok;L.phase='feedback';
-  if(q.first){L.marks[L.idx]=ok;if(ok)L.right++;else{const again=L.ls.gen(L.idx);again.first=false;L.queue.push(again)}}
+  if(q.first){L.marks[L.idx]=ok;if(ok)L.right++;else{const gi=q.gi===undefined?L.idx:q.gi,again=L.ls.gen(gi);again.first=false;again.gi=gi;L.queue.push(again)}}
   L.line=ok&&(q.type==='winner'||q.type==='twinner')&&Math.random()<.4?TRICK_LINE:pick(ok?GOOD:BAD);
   L.verdict=null;L.pre='';
   if(q.type==='best'){
@@ -1989,7 +2002,12 @@ function answer(ok){
   if(ok&&q.type==='game'&&MODE_NAME[q.answer])L.line=[MODE_NAME[q.answer]+'!',q.answer==='unde'?'Bottom-up.':'Top-down.',q.answer==='unde'?'undenufe':'obenabe'];
   if(!ok&&q.type==='tlegal'&&q.under.some(i=>L.sel.includes(i)))L.line=['Untertrumpfe? Nid a mim Tisch!','Undertrumping? Not at my table!','nid-a-mim-tisch'];
   if(ok&&q.type==='number'){const r=rankOf(q.answer);L.line=[r.ch+'!',r.en.charAt(0).toUpperCase()+r.en.slice(1)+'.',AUDIO_KEY[r.id]]}
-  if(!voice(L.line[2]))sfx(ok?'good':'bad');
+  // The three everyday praises would be heard about a hundred times each. Vreni says them for the first right answer of a lesson
+  // and for every third one after that; in between there is the chime. Everything else she says every time.
+  if(ok&&GOOD.includes(L.line)&&L.right%3!==1)sfx('good');
+  else if(!voice(L.line[2]))sfx(ok?'good':'bad');
+  // «Not a rule» is said once per lesson: in the legend that opens it, or, in a check, with the first answer it applies to.
+  L.noteFull=!!q.kind&&!L.noted&&!(L.ls.intro&&L.ls.intro.indexOf('levels-')===0);if(q.kind)L.noted=true;
   renderLesson();
 }
 function finishLesson(){
@@ -1998,7 +2016,8 @@ function finishLesson(){
   S.best[k]=Math.max(prev,score);save();
   const passed=!L.ls.check||score>=PASS;
   if(L.ls.check&&passed){const spoke=voice('jetzt-chasch-es');if(!wasPassed)sfx('bell',spoke?1.5:0)}
-  else if(!L.ls.check&&score>=PASS)voice('suuber');
+  else if(!L.ls.check&&score>=PASS)voice(score===1?'suuber':'guet-gmacht');
+  const nx=passed?lessonAfter(L.si,L.li):null,nl=nx&&STAGES[nx[0]].lessons[nx[1]];
   const pct=Math.round(score*100);
   let msg;
   if(L.ls.check)msg=passed
@@ -2006,13 +2025,27 @@ function finishLesson(){
      +'<p class="small">'+songLink('Celebrate with a song')+' <span class="dim">When Vreni wins, she puts this on.</span></p>'
     :'<p class="chalk">Fast.<span class="tr">Almost.</span></p><p>You need 80% to open the next stage. Go back a lesson, or try the check again. No one is counting but me.</p>'
      +'<p class="small">'+extLink(SKETCH_URL,'Take a break with Emil')+' <span class="dim">«Der Jasser», a Swiss comedy classic from 1974.</span></p>';
-  else msg='<p class="chalk">'+(score>=PASS?'Suuber!':'Guet.')+'<span class="tr">'+(score>=PASS?'Clean!':'Good.')+'</span></p><p>'+(score>=PASS?'Ready for the next lesson, with a little less help.':'Do it once more if you like. Repeating is how Jass gets into your hands.')+'</p>';
+  else msg='<p class="chalk">'+(score===1?'Suuber!':score>=PASS?'Guet gmacht!':'Guet.')+'<span class="tr">'+(score===1?'Clean!':score>=PASS?'Well done!':'Good.')+'</span></p><p>'
+    +(score<PASS?'Do it once more if you like. Repeating is how Jass gets into your hands.'
+      :nl&&nl.check?'Ready for the check: ten questions on your own.'
+      :nl&&nl.gen&&nl.help>L.ls.help?'Ready for the next lesson, with a little less help.':'Ready for the next lesson.')+'</p>';
+  const nextFirst=nx&&(L.ls.check||score>=PASS);
+  const nextBtn=nx?'<button class="'+(nextFirst?'primary':'ghost')+'" type="button" id="next-lesson" data-stage="'+nx[0]+'" data-lesson="'+nx[1]+'">'+(nx[0]!==L.si?'On to Stage '+(nx[0]+1):nl.check?'On to the check':'Next lesson')+'</button>':'';
   const si=L.si,li=L.li;
   app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni(passed?'happy':'oops')+'<div class="bubble"><div class="score">'+pct+'%</div>'
     +'<p class="dim small">'+L.right+' of '+L.ls.n+' right on the first try</p>'+msg+'</div></div>'
-    +'<div class="actions" style="margin-top:16px"><button class="primary" type="button" data-go="home">Back to the path</button>'
-    +'<button class="ghost" type="button" data-stage="'+si+'" data-lesson="'+li+'">Again</button></div></div>';
+    +'<div class="actions" style="margin-top:16px">'+(nextFirst?nextBtn:'')
+    +(nx&&nextFirst?'':'<button class="primary" type="button" data-'+(nx?'stage="'+si+'" data-lesson="'+li+'">Again':'go="home">Back to the path')+'</button>')
+    +(nx&&!nextFirst?nextBtn:'')
+    +(nx?'<button class="ghost" type="button" data-go="home">Back to the path</button>':'')
+    +(nx&&!nextFirst?'':'<button class="ghost" type="button" data-stage="'+si+'" data-lesson="'+li+'">Again</button>')+'</div>'
+    +(nx?'<p class="small dim" style="margin-top:8px">Next: Stage '+(nx[0]+1)+' · '+nl.title+'</p>':'')+'</div>';
   L=null;
+}
+// The lesson that follows, if it is open: the next one of the stage, or the first one of the next stage.
+function lessonAfter(si,li){
+  if(STAGES[si].lessons[li+1])return [si,li+1];
+  return STAGES[si+1]&&stageOpen(si+1)?[si+1,0]:null;
 }
 
 /* ---------- a whole round ---------- */

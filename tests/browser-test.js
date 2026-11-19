@@ -409,7 +409,7 @@ function expected(q) {
   const weaker = s9.legal.find(i => !s9.good.includes(i));
   await click('button.card[data-group="hand"][data-card="' + weaker + '"]');
   let f9 = await page.evaluate(() => ({ ok: L.ok, verdict: document.querySelector('.verdict').textContent, right: Array.from(document.querySelectorAll('.hand .card.right')).map(e => +e.dataset.card), wrong: Array.from(document.querySelectorAll('.hand .card.wrong')).map(e => +e.dataset.card), text: document.querySelector('.fb').innerText, len: L.queue.length }));
-  ok(f9.ok === false && f9.verdict === 'Allowed, but there is a better card' && JSON.stringify(f9.right) === JSON.stringify(s9.good) && JSON.stringify(f9.wrong) === JSON.stringify([weaker]) && /Schmiere/.test(f9.text) && /not a rule/.test(f9.text) && f9.len === 7, 'a legal but weaker card: «Allowed, but there is a better card», the better one marked green, the habit named, the question comes back');
+  ok(f9.ok === false && f9.verdict === 'Allowed, but there is a better card' && JSON.stringify(f9.right) === JSON.stringify(s9.good) && JSON.stringify(f9.wrong) === JSON.stringify([weaker]) && /Schmiere/.test(f9.text) && /Tactic It often pays off, but it is not a rule/.test(f9.text.replace(/\s+/g, ' ')) && f9.len === 7, 'a legal but weaker card: «Allowed, but there is a better card», the better one marked green, labelled as a tactic and not a rule, the question comes back');
   await overflow('best-card feedback');
   await click('[data-act="next"]');
   await page.evaluate(() => { const q = qSmear(false); q.first = true; L.queue[L.idx] = q; renderLesson(); });
@@ -419,7 +419,8 @@ function expected(q) {
   ok(f9.ok === false && f9.verdict === 'Not allowed' && /against the rules/.test(f9.text) && /must follow suit/.test(f9.text), 'a card against the rules: «Not allowed», with the rule and then the better play');
   await click('[data-go="home"]');
   await click('.lesson-btn[data-stage="8"][data-lesson="0"]');
-  ok(await page.evaluate(() => Array.from(document.querySelectorAll('.spk')).map(b => b.dataset.say).join() === 'trumpf-uszieh'), 'Trumpf uszieh intro has its speaker button');
+  ok(await page.evaluate(() => Array.from(document.querySelectorAll('.spk')).map(b => b.dataset.say).join() === 'trumpf-uszieh' && Array.from(document.querySelectorAll('.levels div')).map(d => d.querySelector('.tag').textContent + (d.classList.contains('on') ? '*' : '')).join() === 'Rule,Tactic*,Signal'), 'Trumpf uszieh intro: speaker button, and the legend rule, tactic, signal with «tactic» highlighted');
+  await overflow('team play intro');
   await click('[data-act="begin"]');
   await page.evaluate(() => { playing = null; }); await answerCurrent(false); await sleep(300);
   ok(await page.evaluate(() => L.ok === true && L.line[2] === 'trumpf-uszieh' && playing && playing.src.split('/').pop() === 'trumpf-uszieh.mp3' && document.querySelector('.verdict').textContent === 'Correct'), 'leading the Puur: Vreni says «Trumpf uszieh»');

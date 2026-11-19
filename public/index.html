@@ -132,6 +132,12 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .rscore i{display:block;font-style:normal;font-family:var(--font-body);font-size:11px;letter-spacing:.4px;color:var(--chalk-dim)}
 .badge{width:24px;height:24px;flex:0 0 auto}
 .tag.win{background:var(--good)}
+.tag.rule{background:#d9d4c6}
+.kind .tag{margin-right:3px}
+.levels{display:flex;flex-direction:column;gap:5px;font-size:15px}
+.levels div{display:flex;gap:8px;align-items:baseline;opacity:.55}
+.levels div.on{opacity:1}
+.levels .tag{flex:0 0 58px;text-align:center}
 .cards.gone{gap:6px;align-self:flex-start;justify-content:flex-start}
 .cards.gone .card{width:46px;opacity:.5}
 .table .none{margin:0;align-self:flex-start}
@@ -712,7 +718,10 @@ const beats=(c,t)=>{const o=orderOf(c.s,t);return o.slice(0,o.indexOf(c.r))};   
 const isBock=(c,gone,t)=>beats(c,t).every(r=>gone.some(g=>g.s===c.s&&g.r===r));
 const theNames=l=>{const n=l.map(x=>'the '+x);return n.length<2?n[0]:n.slice(0,-1).join(', ')+' and '+n[n.length-1]};
 const capFirst=x=>x.charAt(0).toUpperCase()+x.slice(1);
-const NOTE_HABIT='A habit of good players, not a rule. Tables differ.';
+// A rule is a must. A tactic often pays off. A signal tells your partner something. Chapter 3 teaches tactics and signals only.
+const KIND_NOTE={tactic:'<span class="tag">Tactic</span> It often pays off, but it is not a rule.',
+  signal:'<span class="tag win">Signal</span> A message to your partner, not a rule. Some tables agree on other signals.',
+  both:'<span class="tag">Tactic</span> <span class="tag win">Signal</span> It often pays off, and it tells your partner something. It is not a rule.'};
 
 function qBock(asTrump){
   const s=pick(SUITS).id,t=asTrump?s:null,o=orderOf(s,t),k=1+rnd(3);            // the top k cards are gone
@@ -756,18 +765,18 @@ function bestQ(o){
     legal:trick.length?legalT(hand,trick,o.trump):hand.map((_,i)=>i),
     answer:hand.map((c,i)=>o.good(c)?i:-1).filter(i=>i>=0),
     led:trick.length?trick[0].s:undefined,winning:trick.length?trickWinnerT(trick,o.trump):-1,
-    info:o.info||'',prompt:o.prompt,hint:o.hint,explain:o.explain,line:o.line||null};
+    info:o.info||'',prompt:o.prompt,hint:o.hint,explain:o.explain,line:o.line||null,kind:o.kind||'tactic'};
 }
 const LAST=['Right','Partner','Left'];        // who has played when you are the last: Right led
 function qDraw(){
   const p=shuffle(deck()),t=pick(SUITS).id,isT=c=>c.s===t,aces=1+rnd(2);
-  let hand=takeFrom(p,c=>isT(c)&&c.r==='U',1).concat(takeFrom(p,c=>isT(c)&&c.r!=='U',3)).concat(takeFrom(p,c=>!isT(c)&&c.r==='A',aces));
+  let hand=takeFrom(p,c=>isT(c)&&c.r==='U',1).concat(takeFrom(p,c=>isT(c)&&!'U9'.includes(c.r),3)).concat(takeFrom(p,c=>!isT(c)&&c.r==='A',aces));
   hand=hand.concat(takeFrom(p,c=>!isT(c)&&c.r!=='A',9-hand.length));
   const A=aces>1?'Asses':'Ass';
   return bestQ({scn:'draw',trump:t,hand,good:c=>isT(c)&&c.r==='U',
     prompt:'You named Trumpf, and you play the first card. Which one?',
     hint:'You hold four Trumpf, and the Puur is one of them. What could happen to your '+A+' while the other team still holds Trumpf?',
-    explain:'Lead the Puur. Everybody who holds Trumpf has to play one, so the other team loses theirs. And you risk nothing: the Puur always wins. Once their Trumpf are gone, nobody can trump your '+A+'. That is Trumpf uszieh.',
+    explain:'A good start is the Puur. Everybody who holds Trumpf has to play one, so the other team loses theirs, and the Puur cannot lose. Once their Trumpf are gone, they cannot trump your '+A+'. That is Trumpf uszieh. Two rounds are usually enough.',
     line:['Trumpf uszieh!','Draw the Trumpf!','trumpf-uszieh']});
 }
 function qCash(){
@@ -775,10 +784,10 @@ function qCash(){
   let hand=takeFrom(p,c=>isT(c)&&'KO876'.includes(c.r),1+rnd(2)).concat(takeFrom(p,c=>!isT(c)&&c.r==='A',1));
   hand=hand.concat(takeFrom(p,c=>!isT(c)&&c.r!=='A',5-hand.length));
   return bestQ({scn:'cash',trump:t,hand,good:c=>!isT(c)&&c.r==='A',
-    info:'The other three players have no Trumpf left.',
+    info:'The other team has no Trumpf left.',
     prompt:'You lead. Which card?',
-    hint:'Nobody else can trump any more. Which of your cards is sure to win now, and brings the most points?',
-    explain:'Nobody else holds a Trumpf, so nobody can trump your Ass. It is Bock and worth 11 points: play it now. Your own Trumpf will still win later, there is no hurry to play them.',
+    hint:'The other team cannot trump any more. Which of your cards is sure to win now, and brings the most points?',
+    explain:'The other team holds no Trumpf any more, so they cannot trump your Ass. It is Bock and worth 11 points: play it now. Leading more Trumpf would only pull them out of your partner’s hand and your own.',
     line:['Bock!','Nobody can beat it.','bock']});
 }
 function qSmear(partnerWins){
@@ -805,25 +814,25 @@ function qDiscard(){
   return bestQ({scn:'discard',trump:t,trick,seats:LAST,hand,good:c=>c.s===Y,
     prompt:'You cannot follow suit, and you are the last to play. Which card do you throw away?',
     hint:'The trick goes to the other team. Which of your cards cost you nothing? And which suit would you rather not get back?',
-    explain:'The trick is lost, and you hold no '+suitOf(Ld).name+' and no Trumpf. So throw away something that costs nothing: a small '+Yn+'. Your '+Xn+' cards are winners and points, they stay. And your partner has seen it: '+Yn+' is not your suit. That is Verwerfe.',
-    line:['Verwerfe.','Throw away the right one.','verwerfe']});
+    explain:'The trick is lost, and you hold no '+suitOf(Ld).name+' and no Trumpf. So throw away something that costs nothing: a small '+Yn+'. Your '+Xn+' cards are winners and points, they stay. And your partner has seen it: '+Yn+' is your weak suit. That is Verwerfe.',
+    line:['Verwerfe.','Throw away the right one.','verwerfe'],kind:'signal'});
 }
 function qRead(){
   const s=pick(SUITS).id,sn=suitOf(s).name;
-  return {type:'read',cards:[{s,r:pick(['6','7','8'])}],options:SUIT_OPTS(),answer:s,
-    prompt:'Your partner could not follow suit and threw away this card. Which suit should you not lead to him?',
+  return {type:'read',kind:'signal',cards:[{s,r:pick(['6','7','8'])}],options:SUIT_OPTS(),answer:s,
+    prompt:'Your partner could not follow suit and threw away this card. Which suit is he telling you he is weak in?',
     hint:'People throw away what they do not need.',
-    explain:'He threw away a small '+sn+'. So '+sn+' is the suit he does not want: do not lead it to him. Any other suit is a better guess.'};
+    explain:'He threw away a small '+sn+', so '+sn+' is probably his weak suit. You will usually not lead it to him, and look for his strong suit instead. It is a hint, not an order: sometimes the game asks for that suit anyway.'};
 }
 function qPull(){
   const p=shuffle(deck()),suits=shuffle(SUITS).map(x=>x.id),t=suits[0],X=suits[1],low=pick(['8','7','6']),Xn=suitOf(X).name;
   const hand=[{s:X,r:'K'},{s:X,r:'O'},{s:X,r:low}].concat(takeFrom(p,c=>c.s!==t&&c.s!==X&&'U98'.includes(c.r),2));
   return bestQ({scn:'pull',trump:t,hand,good:c=>c.s===X&&c.r===low,
     info:'No Trumpf is left in the game. The Ass of '+Xn+' has not been played yet.',
-    prompt:'You lead. How do you turn your König into a Bock?',
-    hint:'Your König is not Bock yet, because the Ass is still out. Which card can pull the Ass out without costing you anything?',
-    explain:'Lead the small '+Xn+'. The Ass will usually come out to take the trick, and all it wins from you is a card worth nothing. After that your König is Bock, and your Ober is next in line. That is Aazieh.',
-    line:['Aazieh!','Pull the Ass out.','aazieh']});
+    prompt:'You lead. How do you try to turn your König into a Bock?',
+    hint:'Your König is not Bock yet, because the Ass is still out. Which card can lure the Ass out without costing you anything?',
+    explain:'Lead the small '+Xn+'. You are trying to lure the Ass out: if it is played, all it wins from you is a card worth nothing, and your König becomes Bock, with your Ober next in line. Your partner also learns that '+Xn+' is your strong suit. That is Aazieh. It does not work every time.',
+    line:['Aazieh!','Lure the Ass out.','aazieh'],kind:'both'});
 }
 
 const STAGES=[
@@ -929,18 +938,18 @@ const STAGES=[
       text:'Ten questions, no help. Get eight right to open the next stage.',
       gen:i=>[()=>qBock(false),()=>qBock(true),()=>qMyBock(),()=>qTrumpCount(),()=>qMyBock()][i%5]()}
   ]},
-  {ch:3,title:'Team play',blurb:'Four habits that turn two players into a team.',lessons:[
-    {title:'Trumpf uszieh',help:0,n:6,
-      text:'You named Trumpf, so you probably hold the most of it. Use that: lead Trumpf until the other team has none left{trumpf-uszieh}. After that nobody can trump your Asses. And when their Trumpf are gone, stop, and play your Bock.',
+  {ch:3,title:'Team play',blurb:'Tactics and signals that turn two players into a team. None of them is a rule.',lessons:[
+    {title:'Trumpf uszieh',help:0,n:6,intro:'levels-tactic',
+      text:'You named Trumpf, so you probably hold the most of it. Often the best start is to lead Trumpf{trumpf-uszieh}: it pulls the other team’s Trumpf out, and after that they cannot trump your Asses. Two rounds are usually enough. Every extra round also costs your partner a Trumpf. Once the other team has none left, stop, and play your Bock.',
       gen:i=>i%2?qCash():qDraw()},
-    {title:'Schmiere',help:0,n:6,
-      text:'Jass is played for points, and you play it as a team. When your partner is sure to win the trick, give him your points: a Banner, a König. That is Schmiere{schmiere}. When the other team wins the trick, give them your smallest card.',
+    {title:'Schmiere',help:0,n:6,intro:'levels-tactic',
+      text:'Jass is played for points, and you play it as a team. When your partner is sure to win the trick, put points on it: a Banner, a König. That is Schmiere{schmiere}. When the other team is sure to win it, give your smallest card. Two things stay true: you still have to follow suit, and a card that can win a trick of its own is usually worth keeping.',
       gen:i=>qSmear(i%2===0)},
-    {title:'Verwerfe',help:1,n:6,
-      text:'Sometimes you cannot follow suit and cannot trump. Then you throw a card away{verwerfe}. Throw away what costs nothing, from the suit you do not want. Your partner is watching: what you throw away tells him which suit not to lead to you.',
+    {title:'Verwerfe',help:1,n:6,intro:'levels-signal',
+      text:'Sometimes you cannot follow suit and cannot trump. Then you throw a card away{verwerfe}. Throw away what costs nothing, from your weakest suit. Your partner is watching: the card tells him «I am weak here», and he will usually not lead that suit to you. It is a hint between partners, not an order.',
       gen:i=>i%3===2?qRead():qDiscard()},
-    {title:'Aazieh',help:1,n:6,
-      text:'You hold König and Ober of a suit, but not the Ass. Do not wait for it. Lead a small card of that suit and pull the Ass out{aazieh}. After that your König is Bock.',
+    {title:'Aazieh',help:1,n:6,intro:'levels-both',
+      text:'You hold König and Ober of a suit, but not the Ass. Lead a small card of that suit and try to lure the Ass out{aazieh}. If it is played, your König is Bock. Your partner also sees where you are strong. It does not work every time, but it is a proven tactic.',
       gen:()=>qPull()},
     {title:'Check: play as a team',help:2,n:10,check:true,
       text:'Ten situations, no help. Get eight right, and Chapter 3 is yours.',
@@ -1144,7 +1153,7 @@ const SHEETS=[
   ['cheatsheets/jass-cheat-sheet-3-trumpf.pdf','3 · Trumpf','Puur and Nell, the order and the points in the Trumpf suit, and the 157.'],
   ['cheatsheets/jass-cheat-sheet-4-what-may-i-play.pdf','4 · What may I play?','Following suit, trumping and the ban on undertrumping, with one hand worked out.'],
   ['cheatsheets/jass-cheat-sheet-5-ansagen-or-schieben.pdf','5 · Ansagen or Schieben?','Who speaks first, when to name Trumpf yourself and when to push.'],
-  ['cheatsheets/jass-cheat-sheet-6-playing-well.pdf','6 · Playing well','Bock, counting Trumpf and four habits of good players.']
+  ['cheatsheets/jass-cheat-sheet-6-playing-well.pdf','6 · Playing well','Bock, counting Trumpf, and four proven tactics and signals.']
 ];
 function sheetsHTML(){
   if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
@@ -1154,7 +1163,7 @@ const extLink=(url,label)=>'<a class="ghost link" href="'+url+'">'+label+'</a>';
 const songLink=label=>extLink(SONG_URL,label);
 const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf',3:'Chapter 3 · Playing well'};
 const WORDS2=[['trumpf','Trumpf','troompf','the boss suit of a round'],['puur','Puur','poor','the Under of Trumpf, strongest card of all'],['nell','Nell','nell','the 9 of Trumpf, second strongest'],['steche','Steche','SHTEKH-eh','to take a trick with a Trumpf'],['untertrumpfe','Untertrumpfe','OON-ter-troomp-feh','to play a lower Trumpf on a trumped trick. Not allowed.'],['vorhand','Vorhand','FOR-hahnt','the player to the right of the dealer. She speaks first and plays first.'],['gschobe','Gschobe!','KSHOH-beh','«pushed»: my partner has to name Trumpf']];
-const WORDS3=[['bock','Bock','bock','the highest card of a suit that is still out'],['trumpf-uszieh','Trumpf uszieh','troompf OOS-tsee-eh','to lead Trumpf until the other team has none'],['schmiere','Schmiere','SHMEE-reh','to put points on a trick your partner wins'],['verwerfe','Verwerfe','fer-VER-feh','to throw a card away when you cannot follow suit'],['aazieh','Aazieh','AH-tsee-eh','to lead low from your strong suit and pull the high card out']];
+const WORDS3=[['bock','Bock','bock','the highest card of a suit that is still out'],['trumpf-uszieh','Trumpf uszieh','troompf OOS-tsee-eh','to lead Trumpf and pull the other team’s Trumpf out'],['schmiere','Schmiere','SHMEE-reh','to put points on a trick your partner is sure to win'],['verwerfe','Verwerfe','fer-VER-feh','to throw a card away when you cannot follow suit; it shows your weak suit'],['aazieh','Aazieh','AH-tsee-eh','to lead your strong suit and try to lure the high card out']];
 const WORDS=[['jass','Jass','yahss','the game, and what you do: jassen'],['schieber','Schieber','SHEE-ber','the kind of Jass you are learning'],['stich','Stich','shtikh','a trick: four cards, one from each player'],['farb-aagaeh','Farb aagäh','farb AH-gah','to follow suit']];
 function ladderHTML(){return '<div class="ladder">'+LADDER.map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function valuesHTML(){return '<div class="vals">'+RANKS.slice(0,5).map(r=>'<div><span>'+r.name+'</span><b>'+r.pts+'</b></div>').join('')+'<div><span>9, 8, 7, 6</span><b>0</b></div></div>'}
@@ -1192,6 +1201,13 @@ function introVisual(kind){
   if(kind==='trumpcards')return '<p class="small dim">With Schilte as Trumpf, from strongest to weakest:</p>'+trumpCardsHTML('schilte');
   if(kind==='trumpvalues')return trumpValuesHTML();
   if(kind==='bock')return '<div class="deckrow">'+[['A','played'],['K','<span class="tag win">Bock</span>'],['O',''],['U','']].map(x=>'<div class="cardbox"><span class="card" style="width:64px'+(x[0]==='A'?';opacity:.4':'')+'">'+cardSVG({s:'rose',r:x[0]})+'</span><span class="cap">'+x[1]+'</span></div>').join('')+'</div><p class="small dim">The Ass of Rose has been played. Now the König is the highest Rose left.</p>';
+  if(kind.indexOf('levels-')===0){
+    const k=kind.slice(7),on=x=>k===x||k==='both'?' class="on"':'';
+    return '<div class="levels"><div><span class="tag rule">Rule</span><span>what you must do: follow suit, no undertrumping</span></div>'
+      +'<div'+on('tactic')+'><span class="tag">Tactic</span><span>what often pays off</span></div>'
+      +'<div'+on('signal')+'><span class="tag win">Signal</span><span>what your card tells your partner</span></div></div>'
+      +'<p class="small dim" style="margin-top:8px">This lesson is about '+(k==='both'?'a tactic that is also a signal':k==='signal'?'a signal':'a tactic')+'. Nobody can force you to play this way.</p>';
+  }
   if(kind==='seats')return '<div style="max-width:260px">'+seatsSVG({dealer:3})+'</div><p class="small dim">Here the player on your left has dealt. So you are Vorhand.</p>';
   return '';
 }
@@ -1255,7 +1271,7 @@ function renderDeck(){
       +'<p class="small dim" style="margin-top:8px">Three rules. You may always play a Trumpf instead of following suit. If Trumpf is led, you must play Trumpf, unless the Puur is your only one. And never play a lower Trumpf on a trick that is already trumped.</p>'
       +(stageOpen(5)?'<p class="small dim" style="margin-top:8px">Before the first card, Vorhand names Trumpf or says Gschobe and pushes the choice to her partner. Rule of thumb: name it with the Puur and three more, with Nell, Ass and three more, with Puur, Nell and Ass, or with Puur, Nell and one more plus two Asses elsewhere. Anything less: push.</p>':'')+'</div>':'')
     +(stageOpen(7)?'<div><h2>Chapter 3 · Playing well</h2><div class="scroll"><table class="sheet-table"><tbody>'+WORDS3.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
-      +'<p class="small dim" style="margin-top:8px">Count the Trumpf: nine, minus the ones played, minus your own. Draw Trumpf when you named it, and stop when the others have none. Feed points to a trick your partner wins, and nothing to one he loses. Throw away small cards from your weak suit. Lead low from König and Ober to pull the Ass out. These are habits, not rules.</p></div>':'')
+      +'<p class="small dim" style="margin-top:8px">Count the Trumpf: nine, minus the ones played, minus your own. When you named Trumpf, it often pays to draw it, usually for two rounds, and to stop once the other team has none. Put points on a trick your partner is sure to win, and nothing on one the other team wins. Throw away small cards from your weakest suit: it tells your partner where you are weak. Lead low from König and Ober to lure the Ass out. All of this is tactic and signal, not rule.</p></div>':'')
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';
@@ -1333,7 +1349,7 @@ function renderLesson(){
     fb='<div class="slate fb'+(L.ok?'':' no')+'"><div class="vreni-row">'+vreni(L.ok?'happy':'oops','sm')+'<div class="bubble">'
       +'<span class="verdict">'+(L.ok?'Correct':(L.verdict||'Not quite'))+'</span>'
       +'<p class="chalk">'+line[0]+'<span class="tr">'+line[1]+'</span></p><p>'+(L.pre||'')+q.explain+'</p>'
-      +(q.type==='best'?'<p class="small dim">'+NOTE_HABIT+'</p>':'')
+      +(q.kind?'<p class="small dim kind">'+KIND_NOTE[q.kind]+'</p>':'')
       +(!L.ok&&q.first?'<p class="small dim">This one comes back at the end.</p>':'')
       +'<div class="actions" style="margin-top:10px"><button class="primary" type="button" data-act="next" id="next-btn">'+(L.idx+1<L.queue.length?'Next':'Finish')+'</button></div>'
       +'</div></div></div>';

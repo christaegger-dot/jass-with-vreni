@@ -201,12 +201,12 @@ for(let i=0;i<3000;i++){
   ok(q.hand.length===3&&new Set(q.hand.map(c=>c.s)).size===3&&uniq(q.hand.concat(q.gone))&&q.gone.length>=1&&q.gone.length<=5&&bocks.length===1&&J(q.answer)===J(bocks)&&q.single===true,'mybock: exactly one card of the hand is Bock');
   q=api.qTrumpCount();
   ok(uniq(q.gone.concat(q.mine))&&q.gone.concat(q.mine).every(c=>c.s===q.trump)&&q.gone.length>=1&&q.answer===9-q.gone.length-q.mine.length&&q.answer>=1&&q.options.length===4&&new Set(q.options.map(x=>x.id)).size===4&&q.options.some(x=>x.id===q.answer)&&q.explain.includes('= '+q.answer+'.'),'trumpcount');
-  q=api.qRead();ok(q.cards.length===1&&q.answer===q.cards[0].s&&'678'.includes(q.cards[0].r)&&q.options.length===4,'read your partner');
+  q=api.qRead();ok(q.cards.length===1&&q.answer===q.cards[0].s&&'678'.includes(q.cards[0].r)&&q.options.length===4&&q.kind==='signal','read your partner');
   for(const make of [api.qDraw,api.qCash,()=>api.qSmear(true),()=>api.qSmear(false),api.qDiscard,api.qPull]){
     q=make();scnSeen[q.scn]=(scnSeen[q.scn]||0)+1;
     const h=q.hand,t=q.trump,tk=q.cards,legal=tk.length?refLegal(h,tk,t):h.map((_,k)=>k),good=q.answer,pts=k=>refPts(h[k],t);
     ok(q.type==='best'&&q.single===true&&uniq(h.concat(tk))&&J(q.legal)===J(legal)&&good.length>=1&&good.every(k=>legal.includes(k))&&(tk.length?q.winning===refWinner(tk,t)&&q.led===tk[0].s&&q.seats.length===3:q.winning===-1)&&q.hint.length>20&&q.explain.length>40,'best '+q.scn+': legal cards and the trick winner agree with the reference');
-    if(q.scn==='draw')ok(h.length===9&&tk.length===0&&h.filter(c=>c.s===t).length===4&&good.length===1&&h[good[0]].s===t&&h[good[0]].r==='U'&&h.some(c=>c.s!==t&&c.r==='A'),'draw: four Trumpf with the Puur and an Ass to protect; the Puur is led');
+    if(q.scn==='draw')ok(h.length===9&&tk.length===0&&h.filter(c=>c.s===t).length===4&&good.length===1&&h[good[0]].s===t&&h[good[0]].r==='U'&&h.some(c=>c.s!==t&&c.r==='A')&&!inHand(h,t,'9')&&q.kind==='tactic','draw: four Trumpf with the Puur but without the Nell, and an Ass to protect; the Puur is led');
     if(q.scn==='cash')ok(h.length===5&&tk.length===0&&/no Trumpf left/.test(q.info)&&J(good)===J(h.map((c,k)=>c.s!==t&&c.r==='A'?k:-1).filter(k=>k>=0))&&good.length===1&&h.some(c=>c.s===t)&&h.every((c,k)=>good.includes(k)||refPts(c,t)<11),'cash: the plain Ass is the only 11-point card and nobody can trump it');
     if(q.scn==='smearA'||q.scn==='smearB'){
       const X=tk[0].s,A=q.scn==='smearA';
@@ -225,4 +225,5 @@ for(let i=0;i<3000;i++){
   }
 }
 for(const k of ['draw','cash','smearA','smearB','discard','pull'])ok(scnSeen[k]===3000,'scenario occurs: '+k);
+ok(api.qDiscard().kind==='signal'&&api.qPull().kind==='both'&&api.qSmear(true).kind==='tactic'&&api.qCash().kind==='tactic','every situation says whether it is a tactic or a signal');
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

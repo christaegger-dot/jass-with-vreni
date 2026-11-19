@@ -29,8 +29,8 @@ Chapter 1 (the cards, winning a trick, counting points) and chapter 2 (Trumpf: P
 points, which cards may be played, Ansagen or Schieben, and a first whole round of nine tricks against
 three simple computer players). The round is played with the four Trumpf suits only: no Weis, no Stöck,
 no Obenabe or Undenufe, everything counted once. Chapter 3 (playing well) teaches Bock, counting Trumpf
-and four habits of team play: Trumpf uszieh, Schmiere, Verwerfe, Aazieh. These are conventions, and the
-app says so. Still to come: chapter 4 (the full game).
+and four proven tactics and signals of team play: Trumpf uszieh, Schmiere, Verwerfe, Aazieh. The app keeps
+three things apart: rules (a must), tactics (often useful) and signals between partners (tables differ). Still to come: chapter 4 (the full game).
 Progress is stored in the learner's browser only.
 
 ## Running it locally

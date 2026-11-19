@@ -99,7 +99,7 @@ li{margin-bottom:5px}
 .pat p{font-size:9.2pt;line-height:1.3;margin:0}
 .pc{display:flex;flex-direction:column;align-items:center;gap:3px}
 .pc svg{width:.41in;height:auto;display:block;border-radius:5px}
-.page.tight{gap:.11in}
+.page.tight{gap:.1in}
 .pc.dim svg{opacity:.38}
 .pc.big svg{width:.6in}
 .pcs{display:flex;gap:6px;align-items:flex-start}
@@ -166,7 +166,8 @@ function build(which) {
     if (!isBock({ s: 'rose', r: 'K' }, [{ s: 'rose', r: 'A' }], null) || isBock({ s: 'rose', r: 'O' }, [{ s: 'rose', r: 'A' }], null)) throw new Error('the Bock example on sheet 6 is wrong');
     if (!isBock({ s: 'schilte', r: '9' }, [{ s: 'schilte', r: 'U' }], 'schilte')) throw new Error('the Trumpf example on sheet 6 is wrong');
     const T = 'schilte', played = ['U', 'K', '7'], mine = ['9', '8'];
-    const habit = (n, title, en, cards, text) => '<div class="pat"><h3><span class="num">' + n + '</span>' + title + ' <span style="font-family:Atkinson Hyperlegible,sans-serif;font-size:9pt;color:#6b665a">' + en + '</span></h3><div class="pcs">' + cards + '</div><p>' + text + '</p></div>';
+    const TAGS = { tactic: '<span class="tag">Tactic</span>', signal: '<span class="tag w">Signal</span>' };
+    const habit = (n, title, kinds, cards, text) => '<div class="pat"><h3><span class="num">' + n + '</span>' + title + ' <span style="margin-left:auto;display:flex;gap:4px;font-family:Atkinson Hyperlegible,sans-serif">' + kinds.map(k => TAGS[k]).join('') + '</span></h3><div class="pcs">' + cards + '</div><p>' + text + '</p></div>';
     const words = WORDS3.map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
     return '<div class="page tight">'
       + head('Cheat sheet 6 · Chapter 3', 'Playing well', 'Zerscht dänke, dänn spile.', 'Think first, then play.')
@@ -175,13 +176,13 @@ function build(which) {
       + '<div><h2>Count the Trumpf</h2><p>There are nine. Take away the ones that have been played and the ones in your hand.</p>'
       + '<div class="pcs">' + played.map(r => pc(T, r, 'played', 'x', 'dim')).join('') + '<span class="plus">+</span>' + mine.map(r => pc(T, r, 'yours', '', '')).join('') + '</div>'
       + '<div class="sum">9 − ' + played.length + ' − ' + mine.length + ' = ' + (9 - played.length - mine.length) + ' still out</div></div></section>'
-      + '<section><h2>Four habits of good players</h2><div class="pats">'
-      + habit(1, 'Trumpf uszieh', 'draw the Trumpf', pc('eichle', 'U', 'lead', 'w') + pc('eichle', 'K') + pc('eichle', '8') + pc('eichle', '6') + '<span class="plus">+</span>' + pc('rose', 'A', 'safe later', ''), 'You named Trumpf: lead it, the Puur first, until the other team has none. Then stop, and play your Bock.')
-      + habit(2, 'Schmiere', 'feed your partner', pc('schelle', 'A', 'partner wins', 'w') + '<span class="plus">←</span>' + pc('schelle', 'B', 'give this', '') + pc('schelle', '7', 'not this', 'x', 'dim'), 'Your partner is sure to win the trick: put your points on it. The other team wins it: give your smallest card.')
-      + habit(3, 'Verwerfe', 'throw away', pc('eichle', '8', 'throw', 'w') + pc('eichle', '6', 'or this', 'w') + '<span class="plus">&nbsp;</span>' + pc('rose', 'A', 'keep', 'x') + pc('rose', 'K', 'keep', 'x'), 'Cannot follow, cannot trump: throw a small card from your weak suit. Your partner reads it: do not lead this suit to me.')
-      + habit(4, 'Aazieh', 'pull the Ass out', pc('schilte', 'K', 'Bock soon', '') + pc('schilte', 'O') + pc('schilte', '6', 'lead', 'w'), 'König and Ober, but no Ass: lead the small card of that suit. The Ass comes out, and your König is Bock.')
+      + '<section><h2>Four proven tactics and signals</h2><div class="pats">'
+      + habit(1, 'Trumpf uszieh', ['tactic'], pc('eichle', 'U', 'lead', 'w') + pc('eichle', 'K') + pc('eichle', '8') + pc('eichle', '6') + '<span class="plus">+</span>' + pc('rose', 'A', 'safe later', ''), 'You named Trumpf: it often pays to lead it and pull the other team’s Trumpf out. Two rounds are usually enough. Then play your Bock.')
+      + habit(2, 'Schmiere', ['tactic'], pc('schelle', 'A', 'partner wins', 'w') + '<span class="plus">←</span>' + pc('schelle', 'B', 'give this', '') + pc('schelle', '7', 'not this', 'x', 'dim'), 'Your partner is sure to win the trick: put points on it. The other team is sure to win it: give your smallest card.')
+      + habit(3, 'Verwerfe', ['signal'], pc('eichle', '8', 'throw', 'w') + pc('eichle', '6', 'or this', 'w') + '<span class="plus">&nbsp;</span>' + pc('rose', 'A', 'keep', 'x') + pc('rose', 'K', 'keep', 'x'), 'Cannot follow, cannot trump: throw a small card from your weakest suit. Your partner reads: I am weak here.')
+      + habit(4, 'Aazieh', ['tactic', 'signal'], pc('schilte', 'K', 'Bock soon', '') + pc('schilte', 'O') + pc('schilte', '6', 'lead', 'w'), 'König and Ober, but no Ass: lead the small card and try to lure the Ass out. It also shows your strong suit.')
       + '</div></section>'
-      + '<section class="box"><b>Before you play a card, ask:</b> Who is winning this trick right now? Who still plays after me? How many Trumpf are still out? <b>And remember:</b> these are habits, not rules. Every table has its own, but your partner counts on them.</section>'
+      + '<section class="box"><b>Rule, tactic or signal?</b> A rule is a must: follow suit, no undertrumping. A tactic often pays off. A signal tells your partner something. This page holds tactics and signals only, and tables differ: some lead the Nell before the Puur. <b>Before you play, ask:</b> Who is winning? Who plays after me? How many Trumpf are out?</section>'
       + '<section><h2>Words you will hear</h2><table>' + words + '</table></section>'
       + foot(6) + '</div>';
   }

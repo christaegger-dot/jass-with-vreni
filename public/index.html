@@ -771,7 +771,9 @@ if(S.v!==2){if(S.best['0-2']!==undefined){S.best['0-3']=S.best['0-2'];delete S.b
 const lkey=(si,li)=>si+'-'+li;
 const checkIdx=si=>STAGES[si].lessons.findIndex(l=>l.check);
 const stagePassed=si=>(S.best[lkey(si,checkIdx(si))]||0)>=PASS;
-const stageOpen=si=>si===0||stagePassed(si-1);
+// Reviewers can open every stage with the address ending in #open-all. Nothing about it is saved.
+const OPEN_ALL=location.hash==='#open-all';
+const stageOpen=si=>OPEN_ALL||si===0||stagePassed(si-1);
 let L=null;          // the running lesson
 const app=document.getElementById('app');
 let toastTimer=null;
@@ -849,7 +851,7 @@ function renderHome(){
     :'Your family took the recipes to America and left the card game behind. Sit down, we’ll fix that. One small step at a time.';
   app.innerHTML='<div class="slate"><div class="vreni-row">'+vreni('happy')+'<div class="bubble">'
     +'<p class="chalk">Grüezi mitenand! Chömed, mer jassed.'+spk('gruezi')+'<span class="tr">Hello everyone! Come on, let’s play. · I’m Vreni.</span></p>'
-    +'<p>'+hello+'</p></div></div></div>'
+    +'<p>'+hello+'</p>'+(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
     +'<div class="path">'+path
     +'<p class="later"><b>Still to come:</b> Chapter 2 goes on with Ansagen or Schieben and your first full round. Then Chapter 3 · Playing well and Chapter 4 · The full game.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'

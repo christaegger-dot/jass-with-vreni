@@ -278,6 +278,13 @@ function expected(q) {
   ok(mg.check && !mg.six && mg.s2, 'old saved progress: check result kept, stage 2 stays open, new lesson shown as not done ' + JSON.stringify(mg));
   await click('.lesson-btn[data-stage="0"][data-lesson="2"]'); await click('[data-act="begin"]'); await overflow('six or nine question'); await click('[data-go="home"]');
 
+  // ---- reviewers' switch: #open-all opens every stage without touching the saved progress
+  await page.evaluate(() => { localStorage.clear(); });
+  await page.goto(URL.split('#')[0] + '#open-all', { waitUntil: 'networkidle2' }); await page.reload({ waitUntil: 'networkidle2' });
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 0 && document.querySelector('#app').innerText.includes('every stage is open')), '#open-all opens every stage');
+  await page.goto(URL.split('#')[0], { waitUntil: 'networkidle2' }); await page.reload({ waitUntil: 'networkidle2' });
+  ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 15), 'without the switch the stages are locked again');
+
   // ---- wide screen
   await page.setViewport({ width: 1280, height: 800 }); await click('#home-btn'); await overflow('home on desktop width');
 

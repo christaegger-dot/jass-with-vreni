@@ -11,6 +11,8 @@ Live: https://jass-with-vreni.netlify.app
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
 - `public/cheatsheets/` holds the eleven printable cheat sheets as PDF, one US Letter page each. Sheet 10 is a glossary of every Jass word in the course.
 - `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
+- `public/share.jpg` is the picture that WhatsApp and other messengers show next to the link (1200 x 630 pixels, under 300 KB). The head of `index.html` names it in its `og:` tags.
+- `tools/make-share-image.js` rebuilds that picture from the drawings in the app.
 - `tests/logic-test.js` checks the rules and the question generators, and plays 3000 whole rounds and 700 whole games (every card, Weis, Stöck and slate entry) against a second, independent copy of the rules.
 - `tests/browser-test.js` plays through every lesson, several whole rounds and one whole game in a real browser.
 - `netlify.toml` tells Netlify to publish the `public` folder.
@@ -21,6 +23,8 @@ Live: https://jass-with-vreni.netlify.app
 - Card drawings: own simplified drawings after the traditional Swiss-German pattern.
 - Team badges in the round (a potato for Idaho, a lion for Winterthur): own drawings. The Great Seal of
   Idaho and the coat of arms of Winterthur are official emblems and are not used; the start page links to them.
+- The man in the straw hat who sits at Vreni's table (start page and link preview): own drawing. He is nobody
+  real, not a portrait and not traced from a photo. No photos of people are used in the app.
 - Rules follow the Schieber guide on jassverzeichnis.ch.
 
 ## Status
@@ -76,6 +80,16 @@ node tools/make-cheatsheets.js
 ```
 
 Run it with the local server from above. Do this whenever the card drawings or the sheet texts change.
+
+## Rebuilding the link preview
+
+```
+node tools/make-share-image.js
+```
+
+Run it with the local server from above, whenever Vreni, the man from Idaho or the cards are redrawn. The script stops if the
+picture is heavier than 300 KB, because WhatsApp then shows no picture at all. A messenger that has already shown the link
+keeps its old preview for a while; adding `?v=2` to the link forces a fresh one.
 
 ## One switch to know
 

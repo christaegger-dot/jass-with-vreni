@@ -6,6 +6,18 @@
 <meta name="robots" content="noindex, nofollow, noarchive">
 <title>Jass with Vreni</title>
 <meta name="description" content="Learn Schieber, the Swiss card game Jass, one small step at a time. With Vreni, real Swiss German and plenty of practice.">
+<!-- Link preview for WhatsApp and other messengers. The picture is built by tools/make-share-image.js and must stay under 300 KB. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Jass with Vreni">
+<meta property="og:title" content="Jass with Vreni">
+<meta property="og:description" content="Learn Jass, the Swiss card game, one small step at a time. With Vreni, real Swiss German and plenty of practice.">
+<meta property="og:url" content="https://jass-with-vreni.netlify.app/">
+<meta property="og:image" content="https://jass-with-vreni.netlify.app/share.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Vreni and a laughing man from Idaho in a straw hat, with four Swiss Jass cards between them.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 20 20%27%3E%3Crect width=%2720%27 height=%2720%27 rx=%274%27 fill=%27%231f5a3d%27/%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%276%27 fill=%27%23f4c81e%27 stroke=%27%23201d18%27/%3E%3Cpath d=%27M5 12.5L15 7.5%27 stroke=%27%23cf3a2b%27 stroke-width=%272.4%27/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Lilita+One&family=Patrick+Hand&display=swap">
@@ -161,6 +173,14 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .info{align-self:stretch;margin:0;background:rgba(0,0,0,.22);border-radius:8px;padding:7px 10px;font-size:15px}
 .rn .badge{width:13px;height:13px}
 .dedication{margin:-4px 0 2px;color:var(--gold);font-size:26px;line-height:1.1}
+.mates{display:flex;align-items:flex-end;justify-content:center;gap:4px;margin:10px 0 0}
+.mates .vreni{width:88px;height:88px}
+.mates .fan{display:flex;align-items:flex-end;padding-bottom:7px}
+.mates .fan svg{display:block;width:36px;height:auto;margin:0 -7px;border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,.45);transform-origin:50% 100%}
+.mates .fan svg:nth-child(1){transform:rotate(-15deg)}
+.mates .fan svg:nth-child(2){transform:translateY(-4px)}
+.mates .fan svg:nth-child(3){transform:rotate(15deg)}
+.matesnote{margin:4px 0 14px;text-align:center;font-size:20px;line-height:1.2}
 .places{display:flex;flex-direction:column;gap:14px}
 .place{display:flex;gap:12px;align-items:flex-start}
 .place .badge{width:46px;height:46px;margin-top:2px}
@@ -1663,6 +1683,38 @@ function vreni(mood,cls){
     +'</svg>';
 }
 
+// The man from Idaho who sits down at Vreni's table. Our own drawing in the style of Vreni.
+// He is nobody real: not a portrait and not traced from a photo.
+function idahoMan(cls){
+  return '<svg class="vreni idaho '+(cls||'')+'" viewBox="0 0 120 120" role="img" aria-label="A laughing man from Idaho with a straw hat and a big beard">'
+    +'<path d="M14 120C14 92 106 92 106 120Z" fill="#c9412e"/>'
+    +'<path d="M26 101V120M38 96V120M82 96V120M94 101V120M18 108H102M15 116H105" stroke="#8f2418" stroke-width="2" opacity=".55"/>'
+    +'<path d="M45 106L35 95M75 106L85 95" stroke="#4d78a6" stroke-width="8" stroke-linecap="round"/>'
+    +'<path d="M40 120V103H80V120Z" fill="#4d78a6"/>'
+    +'<path d="M52 110H68V120H52Z" fill="none" stroke="#35587f" stroke-width="1.6"/>'
+    +'<circle cx="44.5" cy="107" r="2.3" fill="#e6b43c"/><circle cx="75.5" cy="107" r="2.3" fill="#e6b43c"/>'
+    +'<circle cx="60" cy="56" r="31" fill="#f0c19c"/>'
+    +'<circle cx="37" cy="59" r="6.5" fill="#f09a86" opacity=".65"/><circle cx="83" cy="59" r="6.5" fill="#f09a86" opacity=".65"/>'
+    +'<path d="M28.5 50C24 82 40 112 60 112C80 112 96 82 91.5 50C87 62 76 66 60 64C44 66 33 62 28.5 50Z" fill="#b0643a"/>'
+    +'<path d="M46 98Q52 106 60 106Q68 106 74 98Q68 111 60 111Q52 111 46 98Z" fill="#d8b89a" opacity=".8"/>'
+    +'<path d="M43.5 73Q60 68 76.5 73Q75 94 60 94Q45 94 43.5 73Z" fill="#7d1d14"/>'
+    +'<path d="M46 72.6Q60 68.6 74 72.6L73 78.5Q60 75.5 47 78.5Z" fill="#fffdf6"/>'
+    +'<ellipse cx="60" cy="88.5" rx="8" ry="4.2" fill="#e0705c"/>'
+    +'<path d="M60 68C53 62 42 64 38 75C46 70 54 71 60 72.5C66 71 74 70 82 75C78 64 67 62 60 68Z" fill="#96502d"/>'
+    +'<ellipse cx="60" cy="61.5" rx="6.5" ry="5.2" fill="#e3a27d"/>'
+    +'<path d="M39 51.5Q45.5 44 52 51.5M68 51.5Q74.5 44 81 51.5" fill="none" stroke="#201d18" stroke-width="2.6" stroke-linecap="round"/>'
+    +'<path d="M34.5 47L31.5 45M85.5 47L88.5 45" stroke="#201d18" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>'
+    +'<ellipse cx="60" cy="33" rx="49" ry="10" fill="#dcb24a" stroke="#9a7420" stroke-width="1.4"/>'
+    +'<path d="M36 33C33 5 87 5 84 33C76 38 44 38 36 33Z" fill="#edcb66" stroke="#9a7420" stroke-width="1.4"/>'
+    +'<path d="M35.6 25.5C44 31 76 31 84.4 25.5L84 33C76 38 44 38 36 33Z" fill="#1f5a3d"/>'
+    +'<path d="M47 16L46 22M57 14V21M66 14.5L66.5 21M74.5 17L76 22.5" stroke="#c39a36" stroke-width="1.3" stroke-linecap="round"/>'
+    +'</svg>';
+}
+// Vreni, three cards and the man from Idaho: the little scene on the home page and in the link preview.
+function matesHTML(){
+  return '<div class="mates">'+vreni('happy')+'<span class="fan" aria-hidden="true">'+cardSVG({s:'rose',r:'A'})+cardSVG({s:'schelle',r:'U'})+cardSVG({s:'schilte',r:'B'})+'</span>'+idahoMan()+'</div>';
+}
+
 /* ---------- Vreni's voice ---------- */
 const GOOD=[['Guet gmacht!','Well done!','guet-gmacht'],['Suuber!','Clean!','suuber'],['Genau eso.','Exactly like that.','genau-eso']];
 const BAD=[['Hoppla!','Oops!','hoppla'],['Nei nei nei.','No no no.','nei-nei-nei'],['Nomol, bitte.','Once more, please.','nomol-bitte'],['Hoppla!','Happens to everyone at my table. Once.','hoppla']];
@@ -2157,10 +2209,10 @@ function scoreHTML(score){
     +'<span class="side r" aria-label="Their team, Winterthur: '+score[1]+' points"><span>Winterthur <b>'+score[1]+'</b><i>their team</i></span>'+badgeSVG(1)+'</span></div>';
 }
 function placesHTML(){
-  return '<div class="slate breaks"><h2>Two places, one table</h2><p class="chalk dedication">For Heidi</p><div class="places">'
+  return '<div class="slate breaks"><h2>Two places, one table</h2><p class="chalk dedication">For Heidi</p>'+matesHTML()+'<p class="chalk matesnote">Vreni kept a chair free for Idaho. It did not stay free for long.</p><div class="places">'
     +'<div class="place">'+badgeSVG(1)+'<div><b>Winterthur, Switzerland</b><p class="small">This is where Vreni’s table stands. The town carries two red lions in its coat of arms, one on each side of a slanting bar. Vreni says anyone can see what they are: two partners at a Jass table.</p><a href="https://heraldry-wiki.com/wiki/Winterthur">See the real coat of arms</a></div></div>'
     +'<div class="place">'+badgeSVG(0)+'<div><b>Idaho, USA</b><p class="small">This is where the cards are headed. Idaho’s Great Seal is the only state seal in America designed by a woman, Emma Edwards Green, in 1891. Its motto is «Esto perpetua», let it be perpetual. Vreni says the same about a good Jass evening.</p><a href="https://sos.idaho.gov/StateSeal/">See the real seal</a></div></div>'
-    +'</div><p class="dim small">The potato and the lion are our own little drawings. In the round at the end of Chapter 2 you play for Idaho. Winterthur has home advantage, Idaho has the potatoes. Somebody will have to make Rösti.</p></div>';
+    +'</div><p class="dim small">The potato, the lion and the man in the straw hat are our own little drawings. In the round at the end of Chapter 2 you play for Idaho. Winterthur has home advantage, Idaho has the potatoes. Somebody will have to make Rösti.</p></div>';
 }
 const WHO=['You win','The player on your right wins','Your partner wins','The player on your left wins'];
 function startRound(si,li){

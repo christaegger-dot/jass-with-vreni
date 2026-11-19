@@ -598,4 +598,16 @@ console.log('whole games: '+J(gameStats));
   ok(/Making the call/.test(tt)&&/Which call\?/.test(tt)&&/Three calls, one table/.test(tt)&&/The whole game/.test(tt)&&/A game of Schieber/.test(tt),'the calls and the game keep their own words');
 }
 ok(api.STAGES.length===14&&api.STAGES[13].ch===5&&api.STAGES[13].lessons.length===1&&api.STAGES[13].lessons[0].game===true,'fourteen stages: the whole game is stage 14');
+// ---- the link preview: Open Graph tags in the head and a picture that WhatsApp accepts
+{
+  const meta=k=>{const m=html.match(new RegExp('<meta (?:property|name)="'+k+'" content="([^"]*)">'));return m?m[1]:null};
+  ok(meta('og:type')==='website'&&meta('og:title')==='Jass with Vreni'&&(meta('og:description')||'').length>40&&meta('og:url')==='https://jass-with-vreni.netlify.app/'
+    &&meta('og:image')==='https://jass-with-vreni.netlify.app/share.jpg'&&meta('og:image:width')==='1200'&&meta('og:image:height')==='630'&&(meta('og:image:alt')||'').length>20,
+    'the head carries the link preview: title, text, address and an absolute picture address');
+  const pth=require('path'),img=fs.readFileSync(pth.join(pth.dirname(process.argv[2]),'share.jpg'));
+  // read the size of the JPEG from its frame header
+  let w=0,h=0;for(let i=2;i<img.length-9&&img[i]===0xFF;){const mk=img[i+1],len=img.readUInt16BE(i+2);if(mk>=0xC0&&mk<=0xCF&&mk!==0xC4&&mk!==0xC8&&mk!==0xCC){h=img.readUInt16BE(i+5);w=img.readUInt16BE(i+7);break}i+=2+len}
+  ok(img[0]===0xFF&&img[1]===0xD8&&w===1200&&h===630&&img.length>20000&&img.length<300*1024,'share.jpg is a JPEG of 1200 x 630 pixels under 300 KB '+J([w,h,img.length]));
+  ok(/function idahoMan\(/.test(html)&&/function matesHTML\(/.test(html)&&!/<img /.test(html),'the man from Idaho is a drawing made by the app, no photo is built in');
+}
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

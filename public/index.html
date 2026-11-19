@@ -132,6 +132,7 @@ button:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offse
 .rscore i{display:block;font-style:normal;font-family:var(--font-body);font-size:11px;letter-spacing:.4px;color:var(--chalk-dim)}
 .badge{width:24px;height:24px;flex:0 0 auto}
 .rn .badge{width:13px;height:13px}
+.dedication{margin:-4px 0 2px;color:var(--gold);font-size:26px;line-height:1.1}
 .places{display:flex;flex-direction:column;gap:14px}
 .place{display:flex;gap:12px;align-items:flex-start}
 .place .badge{width:46px;height:46px;margin-top:2px}
@@ -1246,7 +1247,7 @@ function scoreHTML(score){
     +'<span class="side r" aria-label="Their team, Winterthur: '+score[1]+' points"><span>Winterthur <b>'+score[1]+'</b><i>their team</i></span>'+badgeSVG(1)+'</span></div>';
 }
 function placesHTML(){
-  return '<div class="slate breaks"><h2>Two places, one table</h2><div class="places">'
+  return '<div class="slate breaks"><h2>Two places, one table</h2><p class="chalk dedication">For Heidi</p><div class="places">'
     +'<div class="place">'+badgeSVG(1)+'<div><b>Winterthur, Switzerland</b><p class="small">This is where Vreni’s table stands. The town carries two red lions in its coat of arms, one on each side of a slanting bar. Vreni says anyone can see what they are: two partners at a Jass table.</p><a href="https://heraldry-wiki.com/wiki/Winterthur">See the real coat of arms</a></div></div>'
     +'<div class="place">'+badgeSVG(0)+'<div><b>Idaho, USA</b><p class="small">This is where the cards are headed. Idaho’s Great Seal is the only state seal in America designed by a woman, Emma Edwards Green, in 1891. Its motto is «Esto perpetua», let it be perpetual. Vreni says the same about a good Jass evening.</p><a href="https://sos.idaho.gov/StateSeal/">See the real seal</a></div></div>'
     +'</div><p class="dim small">The potato and the lion are our own little drawings. In the round at the end of Chapter 2 you play for Idaho. Winterthur has home advantage, Idaho has the potatoes. Somebody will have to make Rösti.</p></div>';

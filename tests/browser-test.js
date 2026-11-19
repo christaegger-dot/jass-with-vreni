@@ -128,7 +128,7 @@ function expected(q) {
   ok(await page.evaluate(() => document.querySelectorAll('.lesson-btn:disabled').length === 20), 'stages 2 to 7 locked at start');
   await overflow('home');
   const pl = await page.evaluate(() => ({ badges: document.querySelectorAll('.places svg.badge').length, links: Array.from(document.querySelectorAll('.places a')).map(a => a.getAttribute('href')), text: document.querySelector('.places').closest('.slate').innerText }));
-  ok(pl.badges === 2 && pl.links.join(' ') === 'https://heraldry-wiki.com/wiki/Winterthur https://sos.idaho.gov/StateSeal/' && /Winterthur, Switzerland/.test(pl.text) && /Idaho, USA/.test(pl.text) && /our own little drawings/.test(pl.text), 'home: the card about Winterthur and Idaho, with own badges and links to the real emblems');
+  ok(pl.badges === 2 && pl.links.join(' ') === 'https://heraldry-wiki.com/wiki/Winterthur https://sos.idaho.gov/StateSeal/' && /Winterthur, Switzerland/.test(pl.text) && /Idaho, USA/.test(pl.text) && /our own little drawings/.test(pl.text) && /For Heidi/.test(pl.text), 'home: the card about Winterthur and Idaho, dedicated to Heidi, with own badges and links to the real emblems');
   if (SITE) ok(await page.evaluate(() => Array.from(document.querySelectorAll('.player iframe')).map(f => f.src).join(' ') === 'https://www.youtube-nocookie.com/embed/V450wfaf0jE https://www.youtube-nocookie.com/embed/7F2mBZ3Axs8'), 'public site: two video players on the start page');
 
   // ---- help levels in lesson 1.2 (hint on request)

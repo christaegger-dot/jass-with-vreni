@@ -100,6 +100,9 @@ li{margin-bottom:5px}
 .pc{display:flex;flex-direction:column;align-items:center;gap:3px}
 .pc svg{width:.41in;height:auto;display:block;border-radius:5px}
 .page.tight{gap:.1in}
+.gl{columns:2;column-gap:.32in;font-size:9.2pt;line-height:1.28}
+.gl p{break-inside:avoid;margin:0 0 3.2px;padding-left:.13in;text-indent:-.13in}
+.gl b{font-size:9.8pt}
 .pc.dim svg{opacity:.38}
 .pc.big svg{width:.6in}
 .pcs{display:flex;gap:6px;align-items:flex-start}
@@ -159,6 +162,29 @@ function build(which) {
       + '<section class="two"><div><h2>The points in one round</h2><table><tr><td>Trumpf suit</td><td>20 + 14 + 11 + 10 + 4 + 3 = 62</td></tr><tr><td>Three other suits</td><td>3 × 30 = 90</td></tr><tr><td>Last trick</td><td>5 for whoever wins it</td></tr><tr><td>One whole round</td><td><b>157 points</b>, every time</td></tr></table></div>'
       + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
       + foot(3) + '</div>';
+  }
+  if (which === 10) {
+    // Every word comes from the lists of the app, so the sheet cannot drift away from it.
+    const RANK_NOTE = { A: 'the ace: no name and no number on the card', K: 'the king', O: 'stands where a queen would, and he is a man', U: 'like a jack. In the Trumpf suit he is the Puur.', B: 'the ten: look for the flag' };
+    const entries = [WORDS, WORDS2, WORDS3, WORDS4, WORDS5].reduce((a, l) => a.concat(l), []).map(w => [w[1], w[2], w[3]])
+      .concat(SUITS.map(s => [s.name, s.say, s.en + ', one of the four suits']))
+      .concat(RANKS.filter(r => r.say).map(r => [r.name, r.say, RANK_NOTE[r.id]]))
+      .concat(RANKS.filter(r => r.ch).map(r => [r.ch, r.chSay, r.en + ': how you say the ' + r.id]))
+      .concat([['Ansagen', 'AHN-zah-gen', 'to name the game for a round: a Trumpf suit, Obenabe or Undenufe'], ['Schieben', 'SHEE-ben', 'to push that choice to your partner']]);
+    const plain = t => t.replace(/[^A-Za-zÄÖÜäöü ]/g, '');
+    entries.sort((a, b) => plain(a[0]).localeCompare(plain(b[0]), 'de'));
+    if (new Set(entries.map(e => e[0])).size !== entries.length || entries.some(e => !e[0] || !e[1] || !e[2])) throw new Error('the glossary on sheet 10 has a double or an empty entry');
+    const says = [['gruezi', 'Grüezi mitenand! Chömed, mer jassed.', 'Hello everyone! Come on, let’s play.'], ['guet-gmacht', 'Guet gmacht!', 'Well done!'], ['suuber', 'Suuber!', 'Clean!'], ['genau-eso', 'Genau eso.', 'Exactly like that.'],
+      ['das-isch-en-stich', 'Das isch en Stich!', 'That’s a trick!'], ['hoppla', 'Hoppla!', 'Oops!'], ['nei-nei-nei', 'Nei nei nei.', 'No no no.'], ['nomol-bitte', 'Nomol, bitte.', 'Once more, please.'],
+      ['zerscht-daenke', 'Zerscht dänke, dänn spile.', 'Think first, then play.'], ['nid-a-mim-tisch', 'Untertrumpfe? Nid a mim Tisch!', 'Undertrumping? Not at my table!'], ['heitere-fahne', 'Heitere Fahne, en Match!', 'Good heavens, a Match!'],
+      ['jetzt-chasch-es', 'Jetzt chasch es!', 'Now you’ve got it!'], ['merci', 'Merci fürs Jasse. Bis zum nächschte Mal!', 'Thanks for playing. See you next time!']];
+    says.forEach(s => { if (!RECORDED.has(s[0])) throw new Error('sheet 10 quotes a line Vreni does not say in the app: ' + s[0]); });
+    return '<div class="page tight">'
+      + head('Cheat sheet 10 · All chapters', 'Jass glossary', 'Zerscht dänke, dänn spile.', 'Think first, then play.')
+      + '<section><h2>Every Jass word in the course, from A to Z</h2><div class="gl">' + entries.map(e => '<p><b>' + e[0] + '</b> <span class="say">(' + e[1] + ')</span> ' + e[2] + '</p>').join('') + '</div></section>'
+      + '<section><h2>What Vreni says</h2><div class="gl">' + says.map(s => '<p><b>' + s[1] + '</b> ' + s[2] + '</p>').join('') + '</div></section>'
+      + '<section class="box"><b>How to say it.</b> The spellings in brackets are rough guides for American mouths. In the app, tap the speaker next to a word and Vreni says it for you. Swiss German has no fixed spelling, so you will also meet Wys (Weis), Matsch (Match), Näll (Nell), Bauer (Puur) and Undeufe (Undenufe).</section>'
+      + foot(10).replace('Simplified drawings. Real cards:', 'See the real cards:') + '</div>';
   }
   if (which === 9) {
     if (JSON.stringify(FACTOR) !== JSON.stringify({ eichle: 1, rose: 1, schelle: 2, schilte: 2, oben: 3, unde: 3 })) throw new Error('the factors on sheet 9 no longer match the app');
@@ -348,6 +374,7 @@ const SHEETS = [
   [7, 'jass-cheat-sheet-7-obenabe-and-undenufe.pdf', 'Jass cheat sheet 7: Obenabe and Undenufe'],
   [8, 'jass-cheat-sheet-8-weis-and-stoeck.pdf', 'Jass cheat sheet 8: Weis and Stöck'],
   [9, 'jass-cheat-sheet-9-scoring.pdf', 'Jass cheat sheet 9: Scoring like a local'],
+  [10, 'jass-cheat-sheet-10-glossary.pdf', 'Jass cheat sheet 10: Jass glossary'],
 ];
 
 (async () => {

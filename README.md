@@ -9,7 +9,7 @@ Live: https://jass-with-vreni.netlify.app
 
 - `public/index.html` is the whole app: one page, no build step.
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
-- `public/cheatsheets/` holds the nine printable cheat sheets as PDF, one US Letter page each.
+- `public/cheatsheets/` holds the ten printable cheat sheets as PDF, one US Letter page each. Sheet 10 is a glossary of every Jass word in the course.
 - `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
 - `tests/logic-test.js` checks the rules and the question generators, and plays 3000 whole rounds against a second, independent copy of the rules.
 - `tests/browser-test.js` plays through every lesson and several whole rounds in a real browser.

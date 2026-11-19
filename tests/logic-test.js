@@ -245,13 +245,14 @@ function refWeis(hand){
       if(all&&!before&&!after)out.push({pts:{3:20,4:50,5:100,6:150,7:200,8:250,9:300}[b-a+1],keys:order.slice(a,b+1).split('').map(r=>s+r)});
     }
   }
-  for(const r of 'AKOUB9')if(SU.every(s=>has(s,r)))out.push({pts:r==='U'?200:r==='9'?150:100,keys:SU.map(s=>s+r)});
+  for(const r of 'AKOUB9876')if(SU.every(s=>has(s,r)))out.push({pts:r==='U'?200:r==='9'?150:100,keys:SU.map(s=>s+r)});
   return out;
 }
 ok(api.findWeis(H('r:A r:K r:O e:7 e:6 s:U t:U t:8 s:9')).map(w=>w.pts).join()==='20','Ass, König, Ober: three in a row, 20');
 ok(api.findWeis(H('r:7 r:6 r:A e:K e:O s:U t:U t:8 s:9')).length===0,'7, 6, Ass is round the corner: no Weis');
 ok(api.findWeis(H('r:U e:U s:U t:U r:9 e:9 s:9 t:9 r:A')).map(w=>w.pts).sort().join()==='150,200','four Under 200 and four nines 150');
-ok(api.findWeis(H('r:8 e:8 s:8 t:8 r:A e:K s:O t:6 r:6')).length===0,'four eights are no Weis');
+ok(api.findWeis(H('r:8 e:8 s:8 t:8 r:A e:K s:O t:6 r:6')).map(w=>w.pts).join()==='100','four eights: 100, like any four of a kind');
+ok(api.findWeis(H('r:6 e:6 s:6 t:6 r:A e:K s:O t:9 r:9')).map(w=>w.pts).join()==='100'&&api.findWeis(H('r:7 e:7 s:7 t:7 r:A e:K s:O t:9 r:9')).map(w=>w.pts).join()==='100','four sixes and four sevens: 100 each');
 ok(api.findWeis(H('r:A r:K r:O r:U r:B r:9 r:8 r:7 r:6'))[0].pts===300,'nine in a row: 300');
 for(let k=0;k<20000;k++){const h=api.deck().sort(()=>Math.random()-.5).slice(0,9),a=api.findWeis(h).map(w=>w.pts+':'+w.cards.map(key).sort().join()).sort(),b=refWeis(h).map(w=>w.pts+':'+w.keys.sort().join()).sort();if(J(a)!==J(b)){ok(false,'findWeis differs from the reference '+J({h,a,b}));break}}
 const W=(str,kind)=>{const cards=H(str);return kind==='four'?{kind:'four',top:cards[0].r,len:4,pts:{U:200,'9':150}[cards[0].r]||100,cards}:{kind:'seq',suit:cards[0].s,top:cards[0].r,len:cards.length,pts:{3:20,4:50,5:100}[cards.length],cards}};
@@ -269,8 +270,9 @@ for(let i=0;i<3000;i++){
     q=api.qMValue(m);ok(q.answer===REF[m].pts[q.cards[0].r]&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===q.answer),'mvalue '+m);
     q=api.qMCount(m);ok(q.cards.length===4&&uniq(q.cards)&&q.answer===q.cards.reduce((n,c)=>n+REF[m].pts[c.r],0)&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===q.answer)&&q.options.every(o=>o.id>=0),'mcount '+m);
   }
-  for(const kind of ['seq3','seq4','seq5','four','none','three']){
+  for(const kind of ['seq3','seq4','seq5','four','foursmall','none','three']){
     const q=api.qWeisFind(kind),ws=refWeis(q.cards);
+    if(kind==='foursmall')ok(q.answer===100&&'876'.split('').some(r=>q.cards.filter(c=>c.r===r).length===4)&&/older rule/.test(q.explain),'weisfind foursmall: four 8, 7 or 6 are worth 100, and the older rule is named');
     ok(q.cards.length===9&&uniq(q.cards)&&ws.length<=1&&q.answer===(ws[0]?ws[0].pts:0)&&q.options.some(o=>o.id===q.answer)&&J(q.mark.map(k=>key(q.cards[k])).sort())===J(ws[0]?ws[0].keys.sort():[])&&(kind==='none'||kind==='three'?q.answer===0:q.answer>=20),'weisfind '+kind);
     if(kind==='three')ok('AKOUB9'.split('').some(r=>q.cards.filter(c=>c.r===r).length===3),'weisfind three: three of a kind are in the hand');
     seenW[q.answer]=(seenW[q.answer]||0)+1;
@@ -315,6 +317,9 @@ for(let i=0;i<3000;i++){
 ok(Object.keys(seenG).length===6,'all six games occur');
 ok(257*3===771&&api.MC_MATCH[2].options[0]==='771'&&api.MC_MATCH[1].options[0]==='257','Match: 257, and 771 in a triple game');
 for(const list of [api.MC_MATCH,api.MC_END])list.forEach((m,i)=>{const q=api.qMC(list,i,true);ok(m.answer===0&&q.options.length===4&&q.options.find(o=>o.id===q.answer).label===m.options[0]&&q.hint.length>5&&q.explain.length>20,'mc slate '+i)});
-ok(api.MC_END.length===6&&/Stöck, then Weis, then tricks/.test(api.MC_END[1].options[0]),'the order at the end: Stöck, Weis, Stich');
+ok(api.MC_END.length===8&&/Stöck, then Weis, then tricks/.test(api.MC_END[2].options[0])&&/first trick/.test(api.MC_END[2].prompt),'the order at the end: Stöck, Weis, Stich, in the first trick');
+ok(api.MC_END[1].options[0]==='2500'&&/1000/.test(api.MC_END[1].explain)&&/1000/.test(api.MC_END[0].explain)&&/2500/.test(api.MC_END[0].explain),'the total: 1000 without factors, 2500 with');
+ok(/as soon as we have enough/.test(api.MC_END[5].options[0])&&/lost/.test(api.MC_END[5].explain),'thanking in the middle of a round is allowed, and wrong thanks lose');
+ok(/257/.test(api.MC_MATCH[0].explain),'a Kontermatch counts like a Match');
 api.MC_WEIS.forEach((m,i)=>{const q=api.qMC(api.MC_WEIS,i,true);ok(q.options.find(o=>o.id===q.answer).label===m.options[0]&&m.answer===0&&q.options.length===4,'mc Weis '+i)});
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

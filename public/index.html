@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title>Jass with Vreni</title>
 <meta name="description" content="Learn Schieber, the Swiss card game Jass, one small step at a time. With Vreni, real Swiss German and plenty of practice.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 20 20%27%3E%3Crect width=%2720%27 height=%2720%27 rx=%274%27 fill=%27%231f5a3d%27/%3E%3Ccircle cx=%2710%27 cy=%2710%27 r=%276%27 fill=%27%23f4c81e%27 stroke=%27%23201d18%27/%3E%3Cpath d=%27M5 12.5L15 7.5%27 stroke=%27%23cf3a2b%27 stroke-width=%272.4%27/%3E%3C/svg%3E">
@@ -883,7 +884,7 @@ function qMCount(m){
 }
 
 // ----- Weis: rows of three or more in one suit, and four of a kind
-const SEQ_PTS={3:20,4:50,5:100,6:150,7:200,8:250,9:300},FOUR_PTS={U:200,'9':150,A:100,K:100,O:100,B:100};
+const SEQ_PTS={3:20,4:50,5:100,6:150,7:200,8:250,9:300},FOUR_PTS={U:200,'9':150,A:100,K:100,O:100,B:100,'8':100,'7':100,'6':100};
 const SEQ_WORD={3:'three',4:'four',5:'five',6:'six',7:'seven',8:'eight',9:'nine'};
 function findWeis(hand){
   const out=[],has=(s,r)=>hand.some(c=>c.s===s&&c.r===r);
@@ -898,7 +899,8 @@ function findWeis(hand){
   for(const r of Object.keys(FOUR_PTS))if(SUITS.every(x=>has(x.id,r)))out.push({kind:'four',top:r,len:4,pts:FOUR_PTS[r],cards:SUITS.map(x=>({s:x.id,r}))});
   return out;
 }
-const weisName=w=>w.kind==='four'?'four '+(w.top==='9'?'nines':w.top==='A'?'Asses':rankOf(w.top).name+(w.top==='K'?'e':'')):SEQ_WORD[w.len]+' in a row';
+const FOUR_WORD={A:'Asses','9':'nines','8':'eights','7':'sevens','6':'sixes'};
+const weisName=w=>w.kind==='four'?'four '+(FOUR_WORD[w.top]||rankOf(w.top).name+(w.top==='K'?'e':'')):SEQ_WORD[w.len]+' in a row';
 // 1 if a is the higher Weis, -1 if b is, 0 if only the order of play could decide
 function weisCompare(a,b,t){
   if(a.pts!==b.pts)return a.pts>b.pts?1:-1;
@@ -908,12 +910,13 @@ function weisCompare(a,b,t){
   return at===bt?0:at?1:-1;
 }
 const WEIS_OPTS=()=>[{id:0,label:'No Weis'}].concat([20,50,100,150,200].map(n=>({id:n,label:String(n)})));
-function qWeisFind(kind){                  // 'seq3' 'seq4' 'seq5' 'four' 'none' 'three'
+function qWeisFind(kind){                  // 'seq3' 'seq4' 'seq5' 'four' 'foursmall' 'none' 'three'
   let hand,ws;
   for(let tries=0;tries<600;tries++){
     const p=shuffle(deck());hand=[];
     if(kind.indexOf('seq')===0){const L=+kind.slice(3),x=pick(SUITS).id,a=rnd(10-L),rs=PLAIN.slice(a,a+L);hand=takeFrom(p,c=>c.s===x&&rs.includes(c.r),L)}
     if(kind==='four'){const r=pick(['A','K','O','B','9','U','U','9']);hand=takeFrom(p,c=>c.r===r,4)}
+    if(kind==='foursmall'){const r=pick(['8','7','6']);hand=takeFrom(p,c=>c.r===r,4)}
     if(kind==='three'){const r=pick(['A','K','O','U','B','9']);hand=takeFrom(p,c=>c.r===r,3)}
     hand=hand.concat(p.slice(0,9-hand.length));ws=findWeis(hand);
     const long=SUITS.some(x=>cnt(hand,x.id)>=3);
@@ -922,7 +925,7 @@ function qWeisFind(kind){                  // 'seq3' 'seq4' 'seq5' 'four' 'none'
   sortHand(hand);
   const w=ws[0],mark=w?hand.map((c,i)=>w.cards.some(k=>k.s===c.s&&k.r===c.r)?i:-1).filter(i=>i>=0):[];
   const explain=!w?(kind==='three'?'No Weis. Three of a kind count nothing: it takes all four. And none of your suits has three neighbours in a row.':'No Weis. A row needs three neighbours in one suit, with no gap. Four of a kind needs all four suits.')
-    :w.kind==='four'?capFirst(weisName(w))+': '+w.pts+' points.'+(w.top==='U'?' Four Under are the highest four of a kind.':w.top==='9'?' Four nines are worth more than four Asses.':'')
+    :w.kind==='four'?capFirst(weisName(w))+': '+w.pts+' points.'+(w.top==='U'?' Four Under are the highest four of a kind.':w.top==='9'?' Four nines are worth more than four Asses.':'876'.includes(w.top)?' Any four of a kind count, even the small cards. Some tables still play the older rule, where four 8, 7 or 6 count nothing.':'')
     :w.cards.map(c=>rankOf(c.r).name).join(', ').replace(/, ([^,]*)$/,' and $1')+' of '+suitOf(w.suit).name+': '+SEQ_WORD[w.len]+' in a row, '+w.pts+' points.';
   return {type:'weisfind',cards:hand,mark,options:WEIS_OPTS(),answer:w?w.pts:0,prompt:'How much is the Weis in this hand worth?',explain};
 }
@@ -1022,25 +1025,29 @@ function qMatchYN(v){                      // 'yes' 'zero' 'close'
 }
 const MC_MATCH=[
   {prompt:'What is a Kontermatch?',options:['The team that did not name the game wins all nine tricks','Two Matches in a row','A Match in Undenufe','A Match that is taken back'],answer:0,
-    hint:'«Konter» means counter: it comes from the side nobody expected.',explain:'A Kontermatch is a Match by the team that did not name the game. It is the risk you take when you name a game on thin cards.'},
+    hint:'«Konter» means counter: it comes from the side nobody expected.',explain:'A Kontermatch is a Match by the team that did not name the game. It counts like any Match: 257, times the factor. It is the risk you take when you name a game on thin cards.'},
   {prompt:'How many points is a Match worth, before any factor?',options:['257','157','200','300'],answer:0,
     hint:'A round is worth 157. The Match is a bonus on top.',explain:'A round is worth 157, and the Match adds 100: 257.'},
   {prompt:'Your team wins all nine tricks in Obenabe. What do you write?',options:['771','257','514','471'],answer:0,
     hint:'First the Match, then the factor.',explain:'A Match is 257. Obenabe counts triple, and the Match is multiplied too: 257 × 3 = 771.'}
 ];
 const MC_END=[
-  {prompt:'When is a game of Schieber over?',options:['When one team reaches the agreed total, usually 1000','After nine rounds','When every player has been Vorhand twice','When the cards run out'],answer:0,
-    hint:'One round is nine tricks. A game is many rounds.',explain:'You agree on a total before you start, usually 1000 points. The first team to reach it wins, however many rounds that takes.'},
-  {prompt:'Both teams can reach the total in this round. In which order do the points count?',options:['Stöck, then Weis, then tricks','Tricks, then Weis, then Stöck','Weis, then Stöck, then tricks','Whoever counts faster'],answer:0,
-    hint:'The smallest bonus comes first.',explain:'The order is Stöck, Weis, Stich. Stöck count first, then the Weis, and the tricks come last.'},
-  {prompt:'Both teams need 20 points. You hold the highest Weis, worth 20. The other team holds Stöck. Who wins?',options:['They do: Stöck count before Weis','We do: a Weis is announced first','Nobody: the round is played to the end','We do: our Weis is the higher bonus'],answer:0,
+  {prompt:'When is a game of Schieber over?',options:['When one team reaches the agreed total','After nine rounds','When every player has been Vorhand twice','When the cards run out'],answer:0,
+    hint:'One round is nine tricks. A game is many rounds.',explain:'You agree on a total before you start: 1000 if everything counts single, 2500 with single, double and triple. The first team to reach it wins, however many rounds that takes.'},
+  {prompt:'Your table counts single, double and triple. What total do you play to?',options:['2500','1000','157','257'],answer:0,
+    hint:'With factors the points come faster, so the road is longer.',explain:'Without factors a game goes to 1000. With single, double and triple it goes to 2500. Some tables go to 3000. Agree on it before the first card.'},
+  {prompt:'Both teams reach the total in the first trick of a round. In which order do the points count?',options:['Stöck, then Weis, then tricks','Tricks, then Weis, then Stöck','Weis, then Stöck, then tricks','Whoever counts faster'],answer:0,
+    hint:'The smallest bonus comes first.',explain:'The order is Stöck, Weis, Stich. It decides in the first trick, where the Weis are written. After that, whoever thanks first with enough points has won.'},
+  {prompt:'Both teams need 20 points when a new round starts. You hold the highest Weis, worth 20. The other team holds Stöck. Who wins?',options:['They do: Stöck count before Weis','We do: a Weis is announced first','Nobody: the round is played to the end','We do: our Weis is the higher bonus'],answer:0,
     hint:'Remember the order: Stöck, Weis, Stich.',explain:'Stöck count before Weis. Their 20 points get them to the total first, so they win.'},
   {prompt:'Your team has reached the total. How do you end the game?',options:['I thank the other team: that declares the game won','I wait until the round is over','I show my cards','I say nothing and keep counting'],answer:0,
     hint:'It is a polite game.',explain:'You thank the other team. That is called Bedanke, and it declares the game won on the spot.'},
+  {prompt:'In the middle of a round your tricks already hold enough points for the total. May you thank right away?',options:['Yes. I can thank as soon as we have enough','No. A round is always played to the end','Only if my partner agrees first','Only after the last trick'],answer:0,
+    hint:'Nobody has to wait for trick nine.',explain:'Yes. You can thank the moment your team has enough, even in the middle of a round. Play stops and the points are counted. If it is enough, you have won. If not, you have lost.'},
   {prompt:'You thank the other team, but your team is 10 points short. What happens?',options:['Your team loses the game','Nothing, you just play on','You lose 10 points','The round starts again'],answer:0,
     hint:'Count twice, thank once.',explain:'Whoever thanks without having reached the total loses the game. So count carefully before you say it.'},
   {prompt:'You are teaching friends at home. Do you have to use single, double and triple?',options:['No. A table can agree that everything counts single','Yes, always','Only on Sundays','Only with more than four players'],answer:0,
-    hint:'The factors are an agreement, not a law.',explain:'The factors are something a table agrees on. For beginners it is perfectly fine to count everything single.'}
+    hint:'The factors are an agreement, not a law.',explain:'The factors are something a table agrees on. For beginners it is perfectly fine to count everything single, and then you play to 1000.'}
 ];
 
 const STAGES=[
@@ -1188,8 +1195,8 @@ const STAGES=[
       text:'A Weis{wys} is a bonus for the cards you were dealt. Three cards in a row in one suit are worth 20, four are worth 50, five are worth 100. The row follows Ass, König, Ober, Under, Banner, 9, 8, 7, 6, also in the Trumpf suit, and it must have no gap.',
       gen:i=>qWeisFind(['seq3','none','seq4','seq3','seq5','none'][i%6])},
     {title:'Four of a kind',help:0,n:6,intro:'weis',
-      text:'The other kind of Weis is four of a kind: the same card in all four suits. Four Asses, Könige, Ober or Banner are worth 100. Four nines are worth 150, and four Under 200. Three of a kind are worth nothing.',
-      gen:i=>qWeisFind(['four','three','four','seq4','four','none'][i%6])},
+      text:'The other kind of Weis is four of a kind: the same card in all four suits. Any four of a kind are worth 100, from four Asses down to four sixes. Two are worth more: four nines 150, and four Under 200. Three of a kind are worth nothing.',
+      gen:i=>qWeisFind(['four','three','foursmall','seq4','four','none'][i%6])},
     {title:'Whose Weis counts?',help:1,n:6,
       text:'Only one team writes its Weis: the team with the single highest one. That team then writes everything both partners hold, and the other team writes nothing. Same value? A row beats four of a kind. Two equal rows? The higher top card wins, and after that the Trumpf suit.',
       gen:i=>i%2?qWeisWrite():qWeisCmp(['value','kind','top'][(i/2)|0])},
@@ -1198,7 +1205,7 @@ const STAGES=[
       gen:i=>i%2?qMC(MC_WEIS,1+((i/2)|0),true):qStoeck(['yes','othersuit','oben'][(i/2)|0])},
     {title:'Check: Weis and Stöck',help:2,n:10,check:true,
       text:'Ten questions, no help. Get eight right, and you know every way to score before the first trick.',
-      gen:i=>[()=>qWeisFind('seq3'),()=>qWeisFind('four'),()=>qWeisCmp('kind'),()=>qStoeck('yes'),()=>qWeisFind('none'),()=>qWeisWrite(),()=>qStoeck(pick(['split','othersuit','oben'])),()=>qWeisFind('seq4'),()=>qMC(MC_WEIS,rnd(MC_WEIS.length),true),()=>qWeisCmp(pick(['value','top','trump']))][i%10]()}
+      gen:i=>[()=>qWeisFind('seq3'),()=>qWeisFind(pick(['four','four','foursmall'])),()=>qWeisCmp('kind'),()=>qStoeck('yes'),()=>qWeisFind('none'),()=>qWeisWrite(),()=>qStoeck(pick(['split','othersuit','oben'])),()=>qWeisFind('seq4'),()=>qMC(MC_WEIS,rnd(MC_WEIS.length),true),()=>qWeisCmp(pick(['value','top','trump']))][i%10]()}
   ]},
   {ch:4,title:'Scoring like a local',blurb:'Single, double, triple, and the slate that remembers everything.',lessons:[
     {title:'Single, double, triple',help:0,n:6,intro:'factors',
@@ -1208,10 +1215,10 @@ const STAGES=[
       text:'At the end of a round, add up what your team made: the points in your tricks, the 5 for the last trick, your Weis if you had the highest, and 20 for Stöck. Then multiply all of it by the factor of the game. That number goes on the slate.',
       gen:i=>qWrite(['plain','plain','weis','plain','stoeck','weis'][i%6],['rose','schilte','eichle','unde','schelle','oben'][i%6])},
     {title:'Match',help:1,n:6,
-      text:'Win all nine tricks and you have a Match{match}: 100 points on top, 257 instead of 157. It is the tricks that count, not the points. If the other team takes one single trick, even an empty one, there is no Match. A Match is multiplied like everything else. And when the team that did not name the game takes all nine, it is a Kontermatch{kontermatch}.',
+      text:'Win all nine tricks and you have a Match{match}: 100 points on top, 257 instead of 157. It is the tricks that count, not the points. If the other team takes one single trick, even an empty one, there is no Match. A Match is multiplied like everything else. And when the team that did not name the game takes all nine, it is a Kontermatch{kontermatch}, and it counts just the same.',
       gen:i=>[()=>qMatchYN('zero'),()=>qWrite('match'),()=>qMatchYN('yes'),()=>qMC(MC_MATCH,0,true),()=>qWrite('match'),()=>qMatchYN('close')][i%6]()},
-    {title:'Getting to 1000',help:1,n:6,
-      text:'A game of Schieber goes on round after round, until one team reaches the total you agreed on, usually 1000. When both teams are close, the order of counting decides: Stöck first, then Weis, then tricks. The team that gets there thanks the other one{bedanke}, and that ends the game. Thank too early, and you lose it.',
+    {title:'The finish line',help:1,n:8,
+      text:'A game of Schieber goes on round after round, until one team reaches the total you agreed on. If everything counts single, that is 1000. With single, double and triple it is 2500. The moment your team has enough, you thank the other team{bedanke}, even in the middle of a round, and the game is over. Thank too early, and you lose it. If both teams get there in the first trick of a round, the order decides: Stöck first, then Weis, then tricks.',
       gen:i=>qMC(MC_END,i,true)},
     {title:'Check: the slate',help:2,n:10,check:true,
       text:'Ten questions, no help. Get eight right, and the whole game is yours.',
@@ -1437,7 +1444,7 @@ function valuesHTML(){return '<div class="vals">'+RANKS.slice(0,5).map(r=>'<div>
 function trumpLadderHTML(){return '<div class="ladder">'+['Puur','Nell','Ass','König','Ober','Banner','8','7','6'].map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function modeLadderHTML(m){return '<div class="ladder">'+orderM(m).map(r=>'<span>'+rankOf(r).name+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function modeValuesHTML(m){return '<div class="vals">'+orderM(m).filter(r=>pointsM({r},m)).map(r=>'<div><span>'+rankOf(r).name+'</span><b>'+pointsM({r},m)+'</b></div>').join('')+'<div><span>'+orderM(m).filter(r=>!pointsM({r},m)).map(r=>rankOf(r).name).join(', ')+'</span><b>0</b></div></div>'}
-function weisTableHTML(){return '<div class="wt">'+[['3 in a row',20],['4 of a kind',100],['4 in a row',50],['4 nines',150],['5 in a row',100],['4 Under',200]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">Four of a kind: Asses, Könige, Ober or Banner. Four 8, 7 or 6 count nothing.</span>'}
+function weisTableHTML(){return '<div class="wt">'+[['3 in a row',20],['4 of a kind',100],['4 in a row',50],['4 nines',150],['5 in a row',100],['4 Under',200]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">Any four of a kind count 100, from Asses down to sixes. Only nines and Under are worth more.</span>'}
 function factorTableHTML(){return '<div class="wt" style="grid-template-columns:1fr">'+[['Eichle, Rose','single · × 1'],['Schelle, Schilte','double · × 2'],['Obenabe, Undenufe','triple · × 3']].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div>'}
 const modeChip=m=>'<div class="trumpchip"><span>No Trumpf</span><b>'+MODE_NAME[m]+'</b><em>'+(m==='unde'?'6 is highest':'Ass is highest')+'</em></div>';
 function trumpValuesHTML(){return '<div class="vals">'+[['Puur',20],['Nell',14],['Ass',11],['Banner',10],['König',4],['Ober',3],['8, 7, 6',0]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">In the other suits: Under 2, and the 9 nothing.</span>'}
@@ -1554,7 +1561,7 @@ function renderDeck(){
       +'<p class="small dim" style="margin:10px 0 4px">Undenufe, from strongest to weakest:</p>'+modeLadderHTML('unde')+modeValuesHTML('unde')
       +(stageOpen(10)?'<p class="small dim" style="margin:10px 0 4px">Weis:</p>'+weisTableHTML()+'<p class="small dim" style="margin-top:8px">Only the team with the single highest Weis writes, and it writes everything both partners hold. Stöck are König and Ober of Trumpf: 20 points, and they always count.</p>':'')
       +(stageOpen(11)?'<p class="small dim" style="margin:10px 0 4px">The slate:</p>'+factorTableHTML()+'<div class="scroll" style="margin-top:8px"><table class="sheet-table"><tbody>'+WORDS5.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
-        +'<p class="small dim" style="margin-top:8px">One round is worth 157, a Match 257. Everything a team makes in a round is multiplied by the factor of the game. The first team to reach the agreed total, usually 1000, wins. When both are close, the order is Stöck, Weis, Stich.</p>':'')+'</div>':'')
+        +'<p class="small dim" style="margin-top:8px">One round is worth 157, a Match 257. Everything a team makes in a round is multiplied by the factor of the game. The first team to reach the agreed total wins: 1000 if everything counts single, 2500 with factors. If both get there in the first trick of a round, the order is Stöck, Weis, Stich.</p>':'')+'</div>':'')
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';

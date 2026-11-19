@@ -41,7 +41,7 @@ const mWin = (cs, m) => cs.map((c, i) => [c, i]).filter(x => x[0].s === cs[0].s)
 function weisPts(hand) {
   const out = [], SU = ['eichle', 'rose', 'schelle', 'schilte'];
   for (const s of SU) { let run = 0; for (const r of 'AKOUB9876|') { if (r !== '|' && hand.some(c => c.s === s && c.r === r)) run++; else { if (run >= 3) out.push({ 3: 20, 4: 50, 5: 100, 6: 150, 7: 200, 8: 250, 9: 300 }[run]); run = 0; } } }
-  for (const r of 'AKOUB9') if (SU.every(s => hand.some(c => c.s === s && c.r === r))) out.push(r === 'U' ? 200 : r === '9' ? 150 : 100);
+  for (const r of 'AKOUB9876') if (SU.every(s => hand.some(c => c.s === s && c.r === r))) out.push(r === 'U' ? 200 : r === '9' ? 150 : 100);
   return out;
 }
 function higherWeis(q) {
@@ -95,7 +95,7 @@ function expected(q) {
       'When do you announce your Weis': 'When I play my card in the first trick', 'When do you call «Stöck»': 'When I play the second of the two cards', 'What happens to your 20 points': 'They count anyway',
       'It is Obenabe, and you hold König and Ober': 'No. Without a Trumpf suit there are no Stöck', 'Is that a Weis': 'No. A row does not go round the corner', 'Which order do rows follow there': 'The same as everywhere: Ass, König, Ober, Under, Banner, 9',
       'What is a Kontermatch': 'The team that did not name the game wins all nine tricks', 'How many points is a Match worth': '257', 'all nine tricks in Obenabe': '771',
-      'When is a game of Schieber over': 'When one team reaches the agreed total, usually 1000', 'In which order do the points count': 'Stöck, then Weis, then tricks', 'Both teams need 20 points': 'They do: Stöck count before Weis',
+      'When is a game of Schieber over': 'When one team reaches the agreed total', 'What total do you play to': '2500', 'May you thank right away': 'Yes. I can thank as soon as we have enough', 'In which order do the points count': 'Stöck, then Weis, then tricks', 'Both teams need 20 points': 'They do: Stöck count before Weis',
       'How do you end the game': 'I thank the other team: that declares the game won', 'your team is 10 points short': 'Your team loses the game', 'Do you have to use single, double and triple': 'No. A table can agree that everything counts single' }; const k = Object.keys(key).find(k => q.prompt.includes(k)); return q.options.find(o => o.label === key[k]).id; }
     case 'suit': return q.cards[0].s;
     case 'number': return q.cards[0].r;

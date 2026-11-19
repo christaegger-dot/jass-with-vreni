@@ -174,12 +174,12 @@ function build(which) {
       + fbox('Eichle, Rose', 'single', 1, sym('eichle') + sym('rose'))
       + fbox('Schelle, Schilte', 'double', 2, sym('schelle') + sym('schilte'))
       + fbox('Obenabe, Undenufe', 'triple', 3, arrow('▼') + arrow('▲'))
-      + '</div><p class="dim" style="margin-top:6px">The two suits that start with «Sch» count double. A table agrees on the factors before the first card, and beginners can count everything single.</p></section>'
+      + '</div><p class="dim" style="margin-top:6px">The two suits that start with «Sch» count double. Agree on it before the first card. Beginners can count everything single.</p></section>'
       + '<section><h2>What goes on the slate: three rounds</h2><table><tr><td>Game</td><td>Your team made</td><td>Factor</td><td>You write</td></tr>'
       + ex('Rose', '92 points', 1, 92 * FACTOR.rose) + ex('Schilte', '85 points and a Weis of 20', 2, (85 + 20) * FACTOR.schilte) + ex('Undenufe', 'all nine tricks: a Match, 257', 3, 257 * FACTOR.unde)
       + '</table></section>'
-      + '<section class="box"><b>A Match needs all nine tricks.</b> It is the tricks that count, not the points: one empty trick for the other team, and the Match is gone. When the team that did not name the game takes all nine, it is a Kontermatch.</section>'
-      + '<section><h2>The end of the game</h2><ul style="columns:2;column-gap:.3in"><li>Play to the total you agreed on, usually <b>1000</b>.</li><li>Both teams close? The order is <b>Stöck, Weis, Stich</b>.</li><li>Reached it? Thank the other team: <b>Bedanke</b>. The game is over.</li><li>Thanked too early? Your team loses.</li></ul></section>'
+      + '<section class="box"><b>A Match needs all nine tricks.</b> The tricks count, not the points: one empty trick for the other team, and the Match is gone. A Kontermatch, by the team that did not name the game, counts the same.</section>'
+      + '<section><h2>The end of the game</h2><ul style="columns:2;column-gap:.3in"><li>Play to <b>1000</b> without factors, to <b>2500</b> with.</li><li>Enough points? Thank them: <b>Bedanke</b>. Also mid-round.</li><li>Thanked too early? Your team loses.</li><li>Both there in trick one? <b>Stöck, Weis, Stich</b>.</li></ul></section>'
       + '<section><h2>Words you will hear</h2><table>' + words + '</table></section>'
       + foot(9) + '</div>';
   }
@@ -219,7 +219,7 @@ function build(which) {
       + '<section class="two"><div><h2>Rows in one suit</h2><div class="pcs">' + row3.map(c => pc(c.s, c.r)).join('') + '</div>'
       + '<table style="margin-top:6px"><tr><td>3 in a row</td><td>20</td></tr><tr><td>4 in a row</td><td>50</td></tr><tr><td>5 in a row</td><td>100</td></tr><tr><td>6 in a row</td><td>150</td></tr><tr><td>7, 8, 9 in a row</td><td>200, 250, 300</td></tr></table></div>'
       + '<div><h2>Four of a kind</h2><div class="pcs">' + four.map(c => pc(c.s, c.r)).join('') + '</div>'
-      + '<table style="margin-top:6px"><tr><td>4 Under</td><td>200</td></tr><tr><td>4 nines</td><td>150</td></tr><tr><td>4 Asses, Könige, Ober or Banner</td><td>100</td></tr><tr><td>4 eights, sevens or sixes</td><td>nothing</td></tr><tr><td>3 of a kind</td><td>nothing</td></tr></table></div></section>'
+      + '<table style="margin-top:6px"><tr><td>4 Under</td><td>200</td></tr><tr><td>4 nines</td><td>150</td></tr><tr><td>Any other four, from Asses to sixes</td><td>100</td></tr><tr><td>3 of a kind</td><td>nothing</td></tr></table><p class="dim" style="margin-top:4px">Older rule at some tables: four 8, 7 or 6 count nothing.</p></div></section>'
       + '<section class="box"><b>The order for rows never changes:</b> Ass, König, Ober, Under, Banner, 9, 8, 7, 6. Also in the Trumpf suit, where the Under stays between Ober and Banner. No gaps, and not round the corner: 7, 6, Ass is nothing.</section>'
       + '<section><h2>Whose Weis counts?</h2><div class="rules">'
       + '<div class="rule"><span class="num">1</span><div><b>Announce it in the first trick.</b>Say your Weis when you play your first card. Later is too late.</div></div>'

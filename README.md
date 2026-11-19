@@ -9,7 +9,7 @@ Live: https://jass-with-vreni.netlify.app
 
 - `public/index.html` is the whole app: one page, no build step.
 - `public/audio/` holds 52 short recordings of the Jass terms and of Vreni's sayings.
-- `public/cheatsheets/` holds the eight printable cheat sheets as PDF, one US Letter page each.
+- `public/cheatsheets/` holds the nine printable cheat sheets as PDF, one US Letter page each.
 - `tools/make-cheatsheets.js` rebuilds those PDFs from the card drawings in the app.
 - `tests/logic-test.js` checks the rules and the question generators, and plays 3000 whole rounds against a second, independent copy of the rules.
 - `tests/browser-test.js` plays through every lesson and several whole rounds in a real browser.
@@ -31,7 +31,8 @@ three simple computer players). The round is played with the four Trumpf suits o
 no Obenabe or Undenufe, everything counted once. Chapter 3 (playing well) teaches Bock, counting Trumpf
 and four proven tactics and signals of team play: Trumpf uszieh, Schmiere, Verwerfe, Aazieh. The app keeps
 three things apart: rules (a must), tactics (often useful) and signals between partners (tables differ).
-Chapter 4 (the full game) has its first two stages: Obenabe and Undenufe, and Weis and Stöck. Still to come: the last stage of chapter 4, scoring with factors, Match, and how a game ends.
+Chapter 4 (the full game) has three stages: Obenabe and Undenufe, Weis and Stöck, and scoring like a local
+(single, double, triple, Match, and how a game ends). With that the course is complete: 12 stages, 50 lessons.
 Progress is stored in the learner's browser only.
 
 ## Running it locally

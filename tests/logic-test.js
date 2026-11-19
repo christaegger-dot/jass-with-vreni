@@ -1,7 +1,7 @@
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const logic=html.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
-const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS};')();
+const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS,FACTOR,qFactor,qWrite,qMatchYN,MC_MATCH,MC_END};')();
 let fail=0,count=0;const ok=(c,m)=>{count++;if(!c){fail++;console.log('FAIL',m)}};
 const C=(s,r)=>({s,r});
 // fixed cases
@@ -181,7 +181,7 @@ console.log('rounds: team of seat 0 took more tricks in '+ownWins+' of 3000, Mat
 {let good=0;for(let k=0;k<200;k++){const st=api.newRound(api.dealRound(0),0);st.trump='schelle';for(let n=0;n<9;n++){for(let j=0;j<4;j++)api.roundPlay(st,st.turn,api.botMove(st,st.turn));api.roundCloseTrick(st)}if(st.score[0]>st.score[1])good++}
  console.log('first deal, Schelle named, played by the app itself: your team is ahead in '+good+' of 200');ok(good>=100,'first deal is a fair start ('+good+' of 200)')}
 for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
-ok(api.STAGES.length===11&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'eleven stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 starts with stages 10 and 11');
+ok(api.STAGES.length===12&&api.STAGES[11].lessons.length===5&&api.STAGES[11].ch===4&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'twelve stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 has stages 10 to 12');
 
 // ------------------------------------------------------------ chapter 3: Bock, counting, team play
 // Bock, written out independently: every stronger card of the same suit has been played.
@@ -295,5 +295,26 @@ for(let i=0;i<3000;i++){
 }
 ok([0,20,50,100,150,200].every(v=>seenW[v]>50),'every Weis value occurs: '+J(seenW));
 ok(Object.keys(seenS).sort().join()==='oben:no,othersuit:no,split:no,yes:yes','Stöck: one yes, three kinds of no');
+// ------------------------------------------------------------ the slate (stage 12)
+const REF_F={eichle:1,rose:1,schelle:2,schilte:2,oben:3,unde:3};     // typed in by hand: Undenufe counts triple at this table
+ok(J(api.FACTOR)===J(REF_F),'factors: Eichle and Rose single, Schelle and Schilte double, Obenabe and Undenufe triple');
+const gameOf=q=>q.mode||q.trump,seenG={};
+for(let i=0;i<3000;i++){
+  let q=api.qFactor();seenG[gameOf(q)]=1;
+  ok(q.answer===REF_F[gameOf(q)]&&q.options.map(o=>o.id).join()==='1,2,3'&&(!!q.mode)!==(!!q.trump)&&q.game===gameOf(q),'factor');
+  for(const v of ['plain','weis','stoeck','match']){
+    q=api.qWrite(v);const f=REF_F[gameOf(q)],nums=q.lines.join(' ').match(/<b>(\d+)<\/b>/g)||[];
+    const shown=nums.map(x=>+x.replace(/\D/g,'')).reduce((a,b)=>a+b,0),base=v==='match'?257:shown;
+    ok(q.answer===base*f&&(v==='match'?/all nine tricks/.test(q.lines[0])&&nums.length===0:nums.length===(v==='plain'?1:2))&&(v!=='stoeck'||(!!q.trump&&/Stöck: <b>20<\/b>/.test(q.lines[1])))&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===q.answer)&&q.options.every(o=>o.id>=0)&&q.explain.includes(String(q.answer)),'write '+v+': everything the team made, times the factor');
+  }
+  for(const v of ['yes','zero','close']){
+    q=api.qMatchYN(v);const mine=+q.lines[0].match(/(\d+) tricks/)[1];
+    ok(q.answer===(mine===9?'yes':'no')&&(v==='yes')===(mine===9)&&q.tricks[0]+q.tricks[1]===9,'match '+v+': only nine tricks make a Match');
+  }
+}
+ok(Object.keys(seenG).length===6,'all six games occur');
+ok(257*3===771&&api.MC_MATCH[2].options[0]==='771'&&api.MC_MATCH[1].options[0]==='257','Match: 257, and 771 in a triple game');
+for(const list of [api.MC_MATCH,api.MC_END])list.forEach((m,i)=>{const q=api.qMC(list,i,true);ok(m.answer===0&&q.options.length===4&&q.options.find(o=>o.id===q.answer).label===m.options[0]&&q.hint.length>5&&q.explain.length>20,'mc slate '+i)});
+ok(api.MC_END.length===6&&/Stöck, then Weis, then tricks/.test(api.MC_END[1].options[0]),'the order at the end: Stöck, Weis, Stich');
 api.MC_WEIS.forEach((m,i)=>{const q=api.qMC(api.MC_WEIS,i,true);ok(q.options.find(o=>o.id===q.answer).label===m.options[0]&&m.answer===0&&q.options.length===4,'mc Weis '+i)});
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

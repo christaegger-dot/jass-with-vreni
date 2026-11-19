@@ -160,6 +160,29 @@ function build(which) {
       + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
       + foot(3) + '</div>';
   }
+  if (which === 9) {
+    if (JSON.stringify(FACTOR) !== JSON.stringify({ eichle: 1, rose: 1, schelle: 2, schilte: 2, oben: 3, unde: 3 })) throw new Error('the factors on sheet 9 no longer match the app');
+    const fbox = (title, word, f, icons) => '<div class="case" style="text-align:center"><div style="display:flex;gap:8px;justify-content:center;align-items:center;min-height:.5in">' + icons + '</div><b style="display:block;font-size:11.5pt;margin-top:4px">' + title + '</b><div class="sum" style="margin:2px 0 0">' + word + ' · × ' + f + '</div></div>';
+    const sym = s => '<span style="width:.42in;display:inline-block">' + symSVG(s) + '</span>', arrow = t => '<span style="font-family:Lilita One,sans-serif;font-size:22pt;color:#1f5a3d;line-height:1">' + t + '</span>';
+    const ex = (game, parts, f, total) => '<tr><td>' + game + '</td><td>' + parts + '</td><td>× ' + f + '</td><td><b>' + total + '</b></td></tr>';
+    const words = WORDS5.map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page tight">'
+      + head('Cheat sheet 9 · Chapter 4', 'Scoring like a local', 'Heitere Fahne, en Match!', 'Good heavens, a Match!')
+      + '<section class="two"><div><h2>One round</h2><table><tr><td>All the cards</td><td>152 points</td></tr><tr><td>Last trick</td><td>5 points</td></tr><tr><td>One round</td><td><b>157 points</b></td></tr><tr><td>Match: all nine tricks</td><td>157 + 100 = <b>257</b></td></tr></table></div>'
+      + '<div><h2>What your team adds up</h2><ol><li>The points in the tricks you won.</li><li>5 if you won the last trick.</li><li>Your Weis, if your team had the highest.</li><li>20 for Stöck.</li></ol><p class="dim">Then multiply by the factor of the game.</p></div></section>'
+      + '<section><h2>Single, double, triple</h2><div class="cases">'
+      + fbox('Eichle, Rose', 'single', 1, sym('eichle') + sym('rose'))
+      + fbox('Schelle, Schilte', 'double', 2, sym('schelle') + sym('schilte'))
+      + fbox('Obenabe, Undenufe', 'triple', 3, arrow('▼') + arrow('▲'))
+      + '</div><p class="dim" style="margin-top:6px">The two suits that start with «Sch» count double. A table agrees on the factors before the first card, and beginners can count everything single.</p></section>'
+      + '<section><h2>What goes on the slate: three rounds</h2><table><tr><td>Game</td><td>Your team made</td><td>Factor</td><td>You write</td></tr>'
+      + ex('Rose', '92 points', 1, 92 * FACTOR.rose) + ex('Schilte', '85 points and a Weis of 20', 2, (85 + 20) * FACTOR.schilte) + ex('Undenufe', 'all nine tricks: a Match, 257', 3, 257 * FACTOR.unde)
+      + '</table></section>'
+      + '<section class="box"><b>A Match needs all nine tricks.</b> It is the tricks that count, not the points: one empty trick for the other team, and the Match is gone. When the team that did not name the game takes all nine, it is a Kontermatch.</section>'
+      + '<section><h2>The end of the game</h2><ul style="columns:2;column-gap:.3in"><li>Play to the total you agreed on, usually <b>1000</b>.</li><li>Both teams close? The order is <b>Stöck, Weis, Stich</b>.</li><li>Reached it? Thank the other team: <b>Bedanke</b>. The game is over.</li><li>Thanked too early? Your team loses.</li></ul></section>'
+      + '<section><h2>Words you will hear</h2><table>' + words + '</table></section>'
+      + foot(9) + '</div>';
+  }
   if (which === 7) {
     const rowOf = m => orderM(m).map(r => { const c = { s: 'rose', r }, pts = pointsM(c, m); return '<div class="c">' + cardSVG(c) + '<b>' + rankOf(r).name + '</b><span class="pts' + (pts ? '' : ' zero') + '">' + pts + '</span></div>'; }).join('');
     for (const m of ['oben', 'unde']) if (deck().reduce((n, c) => n + pointsM(c, m), 0) !== 152) throw new Error('points on sheet 7 do not add up');
@@ -324,6 +347,7 @@ const SHEETS = [
   [6, 'jass-cheat-sheet-6-playing-well.pdf', 'Jass cheat sheet 6: Playing well'],
   [7, 'jass-cheat-sheet-7-obenabe-and-undenufe.pdf', 'Jass cheat sheet 7: Obenabe and Undenufe'],
   [8, 'jass-cheat-sheet-8-weis-and-stoeck.pdf', 'Jass cheat sheet 8: Weis and Stöck'],
+  [9, 'jass-cheat-sheet-9-scoring.pdf', 'Jass cheat sheet 9: Scoring like a local'],
 ];
 
 (async () => {

@@ -980,6 +980,69 @@ const MC_WEIS=[
     hint:'For a Weis the cards keep their old places.',explain:'For a Weis the order never changes, not even in the Trumpf suit: Ass, König, Ober, Under, Banner, 9, 8, 7, 6.'}
 ];
 
+/* ---------- Chapter 4, last stage: the slate ---------- */
+// What a round is worth depends on the game that was named. Undenufe counts triple at this table, not fourfold.
+const FACTOR={eichle:1,rose:1,schelle:2,schilte:2,oben:3,unde:3},FACTOR_WORD={1:'single',2:'double',3:'triple'};
+const GAMES=['eichle','rose','schelle','schilte','oben','unde'];
+const gameName=g=>MODE_NAME[g]||suitOf(g).name;
+const gameFields=g=>MODE_NAME[g]?{mode:g}:{trump:g};
+function qFactor(g){
+  g=g||pick(GAMES);const f=FACTOR[g],n=gameName(g);
+  return Object.assign({type:'factor',cards:[],blank:true,game:g,answer:f,options:[{id:1,label:'Single',sub:'× 1'},{id:2,label:'Double',sub:'× 2'},{id:3,label:'Triple',sub:'× 3'}],
+    prompt:n+' is named. How does this round count?',
+    explain:f===1?n+' counts single, like '+(g==='eichle'?'Rose':'Eichle')+'.'
+      :f===2?n+' counts double, like '+(g==='schelle'?'Schilte':'Schelle')+'. A way to remember it: the two suits that start with «Sch» count double.'
+      :n+' counts triple, like '+(g==='oben'?'Undenufe':'Obenabe')+'. The games without Trumpf are worth the most.'},gameFields(g));
+}
+function qWrite(v,g){                      // 'plain' 'weis' 'stoeck' 'match'
+  g=g||pick(GAMES);if(v==='stoeck'&&MODE_NAME[g])g=pick(['eichle','rose','schelle','schilte']);   // Stöck needs a Trumpf suit
+  const f=FACTOR[g],n=gameName(g),word=FACTOR_WORD[f];
+  let p,w=0,lines,explain;
+  if(v==='match'){p=257;lines=['Your team won <b>all nine tricks</b>.'];
+    explain='All nine tricks is a Match: 157 + 100 = 257. '+n+' counts '+word+(f>1?', so 257 × '+f+' = '+257*f+'.':', so 257 it is.')}
+  else{
+    p=pick([45,50,55,60,65,70,75,80,85,90,95,100,105,110,120]);lines=['Your team made <b>'+p+'</b> points in its tricks.'];
+    explain=n+' counts '+word+(f>1?': '+p+' × '+f+' = '+p*f+'.':', so it stays '+p+'.');
+    if(v==='weis'){w=pick([20,50]);lines.push('Your team also had the highest Weis: <b>'+w+'</b>.');
+      explain='First add: '+p+' + '+w+' = '+(p+w)+'. '+n+' counts '+word+(f>1?', so '+(p+w)+' × '+f+' = '+(p+w)*f+'.':', so it stays '+(p+w)+'.')+' The Weis is multiplied like everything else.'}
+    if(v==='stoeck'){w=20;lines.push('Your team also had the Stöck: <b>20</b>.');
+      explain='First add: '+p+' + 20 = '+(p+20)+'. '+n+' counts '+word+(f>1?', so '+(p+20)+' × '+f+' = '+(p+20)*f+'.':', so it stays '+(p+20)+'.')+' The Stöck are multiplied like everything else.'}
+  }
+  const answer=(p+w)*f;
+  return Object.assign({type:'write',cards:[],lines,game:g,v,p,w,answer,options:numOpts(answer,shuffle([p+w,(p+w)*2,(p+w)*3,p*f+w,157*f,answer+100,answer-10,(157-Math.min(p,150))*f])),
+    prompt:'What does your team write on the slate?',explain},gameFields(g));
+}
+function qMatchYN(v){                      // 'yes' 'zero' 'close'
+  const g=pick(GAMES),t={yes:[9,157,0,0],zero:[8,157,1,0],close:[8,152,1,5]}[v];
+  return Object.assign({type:'matchyn',cards:[],v,game:g,tricks:[t[0],t[2]],lines:['<b>Your team:</b> '+t[0]+' tricks, '+t[1]+' points','<b>The other team:</b> '+(t[2]?t[2]+' trick, '+t[3]+' points':'no trick at all')],
+    options:[{id:'yes',label:'Yes',sub:'a Match: 257'},{id:'no',label:'No',sub:'no Match'}],answer:v==='yes'?'yes':'no',prompt:'Is this a Match?',
+    explain:v==='yes'?'All nine tricks: that is a Match. 157 + 100 = 257, before the factor of the game.'
+      :v==='zero'?'No Match. The other team took one trick, and that is enough, even though the trick was worth nothing. It is the tricks that count, not the points.'
+      :'No Match. The other team took the last trick. A Match needs all nine.'},gameFields(g));
+}
+const MC_MATCH=[
+  {prompt:'What is a Kontermatch?',options:['The team that did not name the game wins all nine tricks','Two Matches in a row','A Match in Undenufe','A Match that is taken back'],answer:0,
+    hint:'«Konter» means counter: it comes from the side nobody expected.',explain:'A Kontermatch is a Match by the team that did not name the game. It is the risk you take when you name a game on thin cards.'},
+  {prompt:'How many points is a Match worth, before any factor?',options:['257','157','200','300'],answer:0,
+    hint:'A round is worth 157. The Match is a bonus on top.',explain:'A round is worth 157, and the Match adds 100: 257.'},
+  {prompt:'Your team wins all nine tricks in Obenabe. What do you write?',options:['771','257','514','471'],answer:0,
+    hint:'First the Match, then the factor.',explain:'A Match is 257. Obenabe counts triple, and the Match is multiplied too: 257 × 3 = 771.'}
+];
+const MC_END=[
+  {prompt:'When is a game of Schieber over?',options:['When one team reaches the agreed total, usually 1000','After nine rounds','When every player has been Vorhand twice','When the cards run out'],answer:0,
+    hint:'One round is nine tricks. A game is many rounds.',explain:'You agree on a total before you start, usually 1000 points. The first team to reach it wins, however many rounds that takes.'},
+  {prompt:'Both teams can reach the total in this round. In which order do the points count?',options:['Stöck, then Weis, then tricks','Tricks, then Weis, then Stöck','Weis, then Stöck, then tricks','Whoever counts faster'],answer:0,
+    hint:'The smallest bonus comes first.',explain:'The order is Stöck, Weis, Stich. Stöck count first, then the Weis, and the tricks come last.'},
+  {prompt:'Both teams need 20 points. You hold the highest Weis, worth 20. The other team holds Stöck. Who wins?',options:['They do: Stöck count before Weis','We do: a Weis is announced first','Nobody: the round is played to the end','We do: our Weis is the higher bonus'],answer:0,
+    hint:'Remember the order: Stöck, Weis, Stich.',explain:'Stöck count before Weis. Their 20 points get them to the total first, so they win.'},
+  {prompt:'Your team has reached the total. How do you end the game?',options:['I thank the other team: that declares the game won','I wait until the round is over','I show my cards','I say nothing and keep counting'],answer:0,
+    hint:'It is a polite game.',explain:'You thank the other team. That is called Bedanke, and it declares the game won on the spot.'},
+  {prompt:'You thank the other team, but your team is 10 points short. What happens?',options:['Your team loses the game','Nothing, you just play on','You lose 10 points','The round starts again'],answer:0,
+    hint:'Count twice, thank once.',explain:'Whoever thanks without having reached the total loses the game. So count carefully before you say it.'},
+  {prompt:'You are teaching friends at home. Do you have to use single, double and triple?',options:['No. A table can agree that everything counts single','Yes, always','Only on Sundays','Only with more than four players'],answer:0,
+    hint:'The factors are an agreement, not a law.',explain:'The factors are something a table agrees on. For beginners it is perfectly fine to count everything single.'}
+];
+
 const STAGES=[
   {ch:1,title:'Meet the cards',blurb:'Four suits, nine cards each. None of it looks like a poker deck.',lessons:[
     {title:'The four suits',help:0,n:6,intro:'suits',
@@ -1136,6 +1199,23 @@ const STAGES=[
     {title:'Check: Weis and Stöck',help:2,n:10,check:true,
       text:'Ten questions, no help. Get eight right, and you know every way to score before the first trick.',
       gen:i=>[()=>qWeisFind('seq3'),()=>qWeisFind('four'),()=>qWeisCmp('kind'),()=>qStoeck('yes'),()=>qWeisFind('none'),()=>qWeisWrite(),()=>qStoeck(pick(['split','othersuit','oben'])),()=>qWeisFind('seq4'),()=>qMC(MC_WEIS,rnd(MC_WEIS.length),true),()=>qWeisCmp(pick(['value','top','trump']))][i%10]()}
+  ]},
+  {ch:4,title:'Scoring like a local',blurb:'Single, double, triple, and the slate that remembers everything.',lessons:[
+    {title:'Single, double, triple',help:0,n:6,intro:'factors',
+      text:'You know the cards, the games and the bonuses. What is left is the slate, the Jasstafel{jasstafel}, which lies next to the green mat, the Jassteppich{jassteppich}. At most tables not every game is worth the same. Eichle and Rose count single. Schelle and Schilte count double. Obenabe and Undenufe count triple.',
+      gen:i=>qFactor(['eichle','schelle','oben','rose','unde','schilte'][i%6])},
+    {title:'What goes on the slate',help:0,n:6,intro:'factors',
+      text:'At the end of a round, add up what your team made: the points in your tricks, the 5 for the last trick, your Weis if you had the highest, and 20 for Stöck. Then multiply all of it by the factor of the game. That number goes on the slate.',
+      gen:i=>qWrite(['plain','plain','weis','plain','stoeck','weis'][i%6],['rose','schilte','eichle','unde','schelle','oben'][i%6])},
+    {title:'Match',help:1,n:6,
+      text:'Win all nine tricks and you have a Match{match}: 100 points on top, 257 instead of 157. It is the tricks that count, not the points. If the other team takes one single trick, even an empty one, there is no Match. A Match is multiplied like everything else. And when the team that did not name the game takes all nine, it is a Kontermatch{kontermatch}.',
+      gen:i=>[()=>qMatchYN('zero'),()=>qWrite('match'),()=>qMatchYN('yes'),()=>qMC(MC_MATCH,0,true),()=>qWrite('match'),()=>qMatchYN('close')][i%6]()},
+    {title:'Getting to 1000',help:1,n:6,
+      text:'A game of Schieber goes on round after round, until one team reaches the total you agreed on, usually 1000. When both teams are close, the order of counting decides: Stöck first, then Weis, then tricks. The team that gets there thanks the other one{bedanke}, and that ends the game. Thank too early, and you lose it.',
+      gen:i=>qMC(MC_END,i,true)},
+    {title:'Check: the slate',help:2,n:10,check:true,
+      text:'Ten questions, no help. Get eight right, and the whole game is yours.',
+      gen:i=>[()=>qFactor(),()=>qWrite(pick(['plain','stoeck'])),()=>qMatchYN('zero'),()=>qMC(MC_END,rnd(MC_END.length),true),()=>qWrite('weis'),()=>qFactor(),()=>qWrite('match'),()=>qMC(MC_END,rnd(MC_END.length),true),()=>qMatchYN(pick(['yes','close'])),()=>qMC(MC_MATCH,rnd(MC_MATCH.length),true)][i%10]()}
   ]}
 ];
 const PASS=.8;
@@ -1337,7 +1417,8 @@ const SHEETS=[
   ['cheatsheets/jass-cheat-sheet-5-ansagen-or-schieben.pdf','5 · Ansagen or Schieben?','Who speaks first, when to name Trumpf yourself and when to push.'],
   ['cheatsheets/jass-cheat-sheet-6-playing-well.pdf','6 · Playing well','Bock, counting Trumpf, and four proven tactics and signals.'],
   ['cheatsheets/jass-cheat-sheet-7-obenabe-and-undenufe.pdf','7 · Obenabe and Undenufe','The two games without Trumpf: order and points side by side.'],
-  ['cheatsheets/jass-cheat-sheet-8-weis-and-stoeck.pdf','8 · Weis and Stöck','What a Weis is worth, whose Weis counts, and the 20 points for Stöck.']
+  ['cheatsheets/jass-cheat-sheet-8-weis-and-stoeck.pdf','8 · Weis and Stöck','What a Weis is worth, whose Weis counts, and the 20 points for Stöck.'],
+  ['cheatsheets/jass-cheat-sheet-9-scoring.pdf','9 · Scoring like a local','Single, double, triple, Match, and how a game ends.']
 ];
 function sheetsHTML(){
   if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
@@ -1349,6 +1430,7 @@ const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf',3:'Chapter
 const WORDS2=[['trumpf','Trumpf','troompf','the boss suit of a round'],['puur','Puur','poor','the Under of Trumpf, strongest card of all'],['nell','Nell','nell','the 9 of Trumpf, second strongest'],['steche','Steche','SHTEKH-eh','to take a trick with a Trumpf'],['untertrumpfe','Untertrumpfe','OON-ter-troomp-feh','to play a lower Trumpf on a trumped trick. Not allowed.'],['vorhand','Vorhand','FOR-hahnt','the player to the right of the dealer. She speaks first and plays first.'],['gschobe','Gschobe!','KSHOH-beh','«pushed»: my partner has to name Trumpf']];
 const WORDS3=[['bock','Bock','bock','the highest card of a suit that is still out'],['trumpf-uszieh','Trumpf uszieh','troompf OOS-tsee-eh','to lead Trumpf and pull the other team’s Trumpf out'],['schmiere','Schmiere','SHMEE-reh','to put points on a trick your partner is sure to win'],['verwerfe','Verwerfe','fer-VER-feh','to throw a card away when you cannot follow suit; it shows your weak suit'],['aazieh','Aazieh','AH-tsee-eh','to lead your strong suit and try to lure the high card out']];
 const WORDS4=[['obenabe','Obenabe','OH-beh-NAH-beh','top-down: no Trumpf, the Ass is highest'],['undenufe','Undenufe','OON-deh-NOO-feh','bottom-up: no Trumpf, the 6 is highest'],['wys','Weis','veess · say «Wys»','bonus points for rows and fours in the cards you are dealt'],['stoeck','Stöck','shtuck','König and Ober of Trumpf in one hand: 20 points']];
+const WORDS5=[['match','Match','mahtch','all nine tricks for one team: 100 points on top'],['kontermatch','Kontermatch','KON-ter-mahtch','a Match by the team that did not name the game'],['jasstafel','Jasstafel','YAHSS-tah-fel','the slate the score is written on'],['jassteppich','Jassteppich','YAHSS-tep-pikh','the green mat the cards are played on'],['bedanke','Bedanke','beh-DAHN-keh','to thank the other team: it declares the game won']];
 const WORDS=[['jass','Jass','yahss','the game, and what you do: jassen'],['schieber','Schieber','SHEE-ber','the kind of Jass you are learning'],['stich','Stich','shtikh','a trick: four cards, one from each player'],['farb-aagaeh','Farb aagäh','farb AH-gah','to follow suit']];
 function ladderHTML(){return '<div class="ladder">'+LADDER.map(n=>'<span>'+n+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function valuesHTML(){return '<div class="vals">'+RANKS.slice(0,5).map(r=>'<div><span>'+r.name+'</span><b>'+r.pts+'</b></div>').join('')+'<div><span>9, 8, 7, 6</span><b>0</b></div></div>'}
@@ -1356,6 +1438,7 @@ function trumpLadderHTML(){return '<div class="ladder">'+['Puur','Nell','Ass','K
 function modeLadderHTML(m){return '<div class="ladder">'+orderM(m).map(r=>'<span>'+rankOf(r).name+'</span>').join('<span class="sep">beats</span>')+'</div>'}
 function modeValuesHTML(m){return '<div class="vals">'+orderM(m).filter(r=>pointsM({r},m)).map(r=>'<div><span>'+rankOf(r).name+'</span><b>'+pointsM({r},m)+'</b></div>').join('')+'<div><span>'+orderM(m).filter(r=>!pointsM({r},m)).map(r=>rankOf(r).name).join(', ')+'</span><b>0</b></div></div>'}
 function weisTableHTML(){return '<div class="wt">'+[['3 in a row',20],['4 of a kind',100],['4 in a row',50],['4 nines',150],['5 in a row',100],['4 Under',200]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">Four of a kind: Asses, Könige, Ober or Banner. Four 8, 7 or 6 count nothing.</span>'}
+function factorTableHTML(){return '<div class="wt" style="grid-template-columns:1fr">'+[['Eichle, Rose','single · × 1'],['Schelle, Schilte','double · × 2'],['Obenabe, Undenufe','triple · × 3']].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div>'}
 const modeChip=m=>'<div class="trumpchip"><span>No Trumpf</span><b>'+MODE_NAME[m]+'</b><em>'+(m==='unde'?'6 is highest':'Ass is highest')+'</em></div>';
 function trumpValuesHTML(){return '<div class="vals">'+[['Puur',20],['Nell',14],['Ass',11],['Banner',10],['König',4],['Ober',3],['8, 7, 6',0]].map(x=>'<div><span>'+x[0]+'</span><b>'+x[1]+'</b></div>').join('')+'</div><span class="small dim">In the other suits: Under 2, and the 9 nothing.</span>'}
 function trumpCardsHTML(suit){
@@ -1390,6 +1473,7 @@ function introVisual(kind){
   if(kind==='trumpcards')return '<p class="small dim">With Schilte as Trumpf, from strongest to weakest:</p>'+trumpCardsHTML('schilte');
   if(kind==='trumpvalues')return trumpValuesHTML();
   if(kind==='oben'||kind==='unde')return modeChip(kind)+'<p class="small dim" style="margin:8px 0 4px">From strongest to weakest:</p>'+modeLadderHTML(kind)+'<p class="small dim" style="margin:8px 0 4px">The points:</p>'+modeValuesHTML(kind);
+  if(kind==='factors')return factorTableHTML()+'<p class="small dim" style="margin-top:8px">A table agrees on this before the first card. Beginners can count everything single.</p>';
   if(kind==='weis')return weisTableHTML()+'<p class="small dim" style="margin-top:8px">The order for rows: Ass, König, Ober, Under, Banner, 9, 8, 7, 6.</p>';
   if(kind==='bock')return '<div class="deckrow">'+[['A','played'],['K','<span class="tag win">Bock</span>'],['O',''],['U','']].map(x=>'<div class="cardbox"><span class="card" style="width:64px'+(x[0]==='A'?';opacity:.4':'')+'">'+cardSVG({s:'rose',r:x[0]})+'</span><span class="cap">'+x[1]+'</span></div>').join('')+'</div><p class="small dim">The Ass of Rose has been played. Now the König is the highest Rose left.</p>';
   if(kind.indexOf('levels-')===0){
@@ -1421,7 +1505,8 @@ function renderHome(){
       +'<span class="state">'+(stagePassed(si)?'Done':(open?'Open':'Locked'))+'</span></div><p>'+st.blurb+'</p><div class="lessons">'+lessons+'</div></section>';
   });
   const all=STAGES.every((_,i)=>stagePassed(i)),ch1=stagePassed(2);
-  const hello=all?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. One stage is still to come, and then you can keep the slate yourself.'
+  const hello=all?'You have finished the whole course: cards, Trumpf, tactics, Weis and the slate. Now find three people and a deck of cards. The lions of Winterthur have been warned.'
+    :stagePassed(10)?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. One stage is left, and then you can keep the slate yourself.'
     :stagePassed(8)?'Chapter 3 is done. You count the Trumpf, you know your Bock and you feed your partner. The lions of Winterthur are getting nervous. Now the full game: two more ways to play, and points before the first card.'
     :stagePassed(6)?'You have played a whole round, and you can sit down at a real table now. Chapter 3 shows how good players think. It is mostly counting.'
     :stagePassed(4)?'You know what you may play. Now you learn to speak first: Ansagen or Schieben. After that we play a whole round. I am already setting the table.'
@@ -1431,7 +1516,7 @@ function renderHome(){
     +'<p class="chalk">Grüezi mitenand! Chömed, mer jassed.'+spk('gruezi')+'<span class="tr">Hello everyone! Come on, let’s play. · I’m Vreni.</span></p>'
     +'<p>'+hello+'</p>'+(OPEN_ALL?'<p class="small dim">Preview: every stage is open. Your own progress is saved as usual.</p>':'')+'</div></div></div>'
     +'<div class="path">'+path
-    +'<p class="later"><b>Still to come:</b> the last stage of Chapter 4, Scoring like a local.</p></div>'
+    +'<p class="later"><b>That is the whole course.</b> Come back whenever you like: the round in Stage 7 deals new cards every time.</p></div>'
     +'<div class="slate breaks"><h2>Cheat sheets to print</h2><p class="dim small">One page each. Keep them next to you at the table. Nobody will mind, least of all Vreni.</p>'+sheetsHTML()+'</div>'
     +placesHTML()
     +'<div class="slate breaks"><h2>For the breaks</h2><p class="dim small">Two Swiss classics on YouTube. Both are in Swiss German, which is half the fun.</p>'
@@ -1467,7 +1552,9 @@ function renderDeck(){
     +(stageOpen(9)?'<div><h2>Chapter 4 · The full game</h2><div class="scroll"><table class="sheet-table"><tbody>'+WORDS4.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
       +'<p class="small dim" style="margin:10px 0 4px">Obenabe, from strongest to weakest:</p>'+modeLadderHTML('oben')+modeValuesHTML('oben')
       +'<p class="small dim" style="margin:10px 0 4px">Undenufe, from strongest to weakest:</p>'+modeLadderHTML('unde')+modeValuesHTML('unde')
-      +(stageOpen(10)?'<p class="small dim" style="margin:10px 0 4px">Weis:</p>'+weisTableHTML()+'<p class="small dim" style="margin-top:8px">Only the team with the single highest Weis writes, and it writes everything both partners hold. Stöck are König and Ober of Trumpf: 20 points, and they always count.</p>':'')+'</div>':'')
+      +(stageOpen(10)?'<p class="small dim" style="margin:10px 0 4px">Weis:</p>'+weisTableHTML()+'<p class="small dim" style="margin-top:8px">Only the team with the single highest Weis writes, and it writes everything both partners hold. Stöck are König and Ober of Trumpf: 20 points, and they always count.</p>':'')
+      +(stageOpen(11)?'<p class="small dim" style="margin:10px 0 4px">The slate:</p>'+factorTableHTML()+'<div class="scroll" style="margin-top:8px"><table class="sheet-table"><tbody>'+WORDS5.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
+        +'<p class="small dim" style="margin-top:8px">One round is worth 157, a Match 257. Everything a team makes in a round is multiplied by the factor of the game. The first team to reach the agreed total, usually 1000, wins. When both are close, the order is Stöck, Weis, Stich.</p>':'')+'</div>':'')
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';
@@ -1532,6 +1619,7 @@ function renderLesson(){
     +(q.cards.length?'<div class="cards">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>':'<p class="small dim none">Nothing yet. You lead.</p>')+handRow();
   if(q.type==='weiscmp')table='<span class="row-label">Our Weis</span>'+row(q.mine,'hand')+'<span class="row-label">Their Weis</span>'+row(q.theirs,'hand');
   if(q.lines)table='<ul class="lines">'+q.lines.map(l=>'<li>'+l+'</li>').join('')+'</ul>';
+  if(q.blank)table='';
   if(q.trump)table='<div class="trumpchip"><span>Trumpf</span>'+symSVG(q.trump)+'<b>'+suitOf(q.trump).name+'</b></div>'+table;
   if(q.mode)table=modeChip(q.mode)+table;
   let options='';
@@ -1560,7 +1648,7 @@ function renderLesson(){
     +HELP.map((h,i)=>'<button type="button" data-help="'+i+'" aria-pressed="'+(L.help===i)+'">'+h+'</button>').join('')+'</div></div>';
   app.innerHTML='<div class="lesson-top"><span class="t">Stage '+(L.si+1)+' · '+L.ls.title+(q.first?'':' · second try')+'</span><div class="dots">'+dots+'</div>'
     +'<button class="ghost" type="button" data-go="home" aria-label="Leave lesson">Leave</button></div>'
-    +'<h2 class="prompt">'+q.prompt+'</h2>'+(q.cards.length||q.gone||q.hand||q.mine||q.lines?'<div class="table">'+table+'</div>':'')+(q.diagram?'<div class="table">'+seatsSVG(q.diagram)+'</div>':'')+options+aid+fb+helpSeg;
+    +'<h2 class="prompt">'+q.prompt+'</h2>'+(q.cards.length||q.gone||q.hand||q.mine||q.lines||q.blank?'<div class="table">'+table+'</div>':'')+(q.diagram?'<div class="table">'+seatsSVG(q.diagram)+'</div>':'')+options+aid+fb+helpSeg;
   if(answered){const b=document.getElementById('next-btn');if(b)b.focus({preventScroll:false})}
 }
 function aidHTML(q){
@@ -1572,6 +1660,9 @@ function aidHTML(q){
   if(q.type==='winner')return '<span><b>'+suitOf(q.led).name+'</b> was led. Only '+suitOf(q.led).name+' can win.</span>'+ladderHTML();
   if(q.type==='legal')return '<span><b>'+suitOf(q.led).name+'</b> was led. Hold that suit? Then play it. Hold none? Then anything goes.</span>'+(q.has?'<span class="small dim">The gold bar marks your '+suitOf(q.led).name+' cards.</span>':'');
   if(q.type==='mc'||q.type==='read')return '<span>'+q.hint+'</span>';
+  if(q.type==='factor')return factorTableHTML();
+  if(q.type==='write')return '<span>First add up everything your team made in the round. Then multiply by the factor of the game.</span>'+factorTableHTML();
+  if(q.type==='matchyn')return '<span>A Match needs all nine tricks. Count the tricks, not the points.</span>';
   if(q.type==='mwinner')return '<span>No Trumpf, so nobody can trump. Only <b>'+suitOf(q.led).name+'</b> can win, and '+(q.mode==='unde'?'the lowest':'the highest')+' one does.</span>'+modeLadderHTML(q.mode);
   if(q.type==='mstronger')return modeLadderHTML(q.mode);
   if(q.type==='mvalue'||q.type==='mcount')return modeValuesHTML(q.mode);
@@ -1611,6 +1702,8 @@ function answer(ok){
       if(!legal)L.pre='That card is against the rules here. '+explainTLegal(q.hand,q.cards,q.trump)+' ';
     }
   }
+  if(ok&&q.type==='matchyn'&&q.answer==='yes')L.line=['Heitere Fahne, en Match!','Good heavens, a Match!','heitere-fahne'];
+  if(ok&&q.type==='write'&&q.v==='match'&&Math.random()<.5)L.line=['En Match!','A Match!','match'];
   if(ok&&q.type==='stoeck'&&q.answer==='yes')L.line=['Stöck!','König and Ober of Trumpf.','stoeck-ruf'];
   if(ok&&q.type==='mwinner'&&Math.random()<.35)L.line=[MODE_NAME[q.mode]+'!',q.mode==='unde'?'Bottom-up.':'Top-down.',q.mode==='unde'?'undenufe':'obenabe'];
   if(ok&&q.type==='weisfind'&&q.answer&&Math.random()<.5)L.line=['En Wys!','A Weis!','wys'];
@@ -1632,7 +1725,7 @@ function finishLesson(){
   const pct=Math.round(score*100);
   let msg;
   if(L.ls.check)msg=passed
-    ?'<p class="chalk">Jetzt chasch es!<span class="tr">Now you’ve got it!</span></p><p>Stage '+(L.si+1)+' is done.'+(!STAGES[L.si+1]?' That is everything so far. More is on the way.':STAGES[L.si+1].ch!==STAGES[L.si].ch?' Chapter '+STAGES[L.si].ch+' is done. Stage '+(L.si+2)+' opens Chapter '+STAGES[L.si+1].ch+'.':' Stage '+(L.si+2)+' is open.')+'</p>'
+    ?'<p class="chalk">Jetzt chasch es!<span class="tr">Now you’ve got it!</span></p><p>Stage '+(L.si+1)+' is done.'+(!STAGES[L.si+1]?' That was the last stage. You know the whole game now. Find three people and a deck of cards.':STAGES[L.si+1].ch!==STAGES[L.si].ch?' Chapter '+STAGES[L.si].ch+' is done. Stage '+(L.si+2)+' opens Chapter '+STAGES[L.si+1].ch+'.':' Stage '+(L.si+2)+' is open.')+'</p>'
      +'<p class="small">'+songLink('Celebrate with a song')+' <span class="dim">When Vreni wins, she puts this on.</span></p>'
     :'<p class="chalk">Fast.<span class="tr">Almost.</span></p><p>You need 80% to open the next stage. Go back a lesson, or try the check again. No one is counting but me.</p>'
      +'<p class="small">'+extLink(SKETCH_URL,'Take a break with Emil')+' <span class="dim">«Der Jasser», a Swiss comedy classic from 1974.</span></p>';

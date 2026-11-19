@@ -1,7 +1,7 @@
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const logic=html.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
-const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS,FACTOR,qFactor,qWrite,qMatchYN,MC_MATCH,MC_END};')();
+const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT,isBock,qBock,qMyBock,qTrumpCount,qDraw,qCash,qSmear,qDiscard,qRead,qPull,pointsM,trickWinnerM,orderM,qMWinner,qMStronger,qMValue,qMCount,findWeis,weisCompare,qWeisFind,qWeisCmp,qWeisWrite,qStoeck,MC_WEIS,FACTOR,qFactor,qWrite,qMatchYN,MC_MATCH,MC_END,sureTricks,qSure,qGame,qLeadT,qLeadNoT,qLeadM};')();
 let fail=0,count=0;const ok=(c,m)=>{count++;if(!c){fail++;console.log('FAIL',m)}};
 const C=(s,r)=>({s,r});
 // fixed cases
@@ -181,7 +181,7 @@ console.log('rounds: team of seat 0 took more tricks in '+ownWins+' of 3000, Mat
 {let good=0;for(let k=0;k<200;k++){const st=api.newRound(api.dealRound(0),0);st.trump='schelle';for(let n=0;n<9;n++){for(let j=0;j<4;j++)api.roundPlay(st,st.turn,api.botMove(st,st.turn));api.roundCloseTrick(st)}if(st.score[0]>st.score[1])good++}
  console.log('first deal, Schelle named, played by the app itself: your team is ahead in '+good+' of 200');ok(good>=100,'first deal is a fair start ('+good+' of 200)')}
 for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
-ok(api.STAGES.length===12&&api.STAGES[11].lessons.length===5&&api.STAGES[11].ch===4&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'twelve stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 has stages 10 to 12');
+ok(api.STAGES.length===13&&api.STAGES[11].lessons.length===5&&api.STAGES[11].ch===4&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true&&api.STAGES[7].lessons.length===5&&api.STAGES[8].lessons.length===5&&api.STAGES[7].ch===3&&api.STAGES[8].ch===3&&api.STAGES[9].lessons.length===6&&api.STAGES[10].lessons.length===5&&api.STAGES[9].ch===4&&api.STAGES[10].ch===4,'the first twelve stages: the round is stage 7, chapter 3 has stages 8 and 9, chapter 4 has stages 10 to 12');
 
 // ------------------------------------------------------------ chapter 3: Bock, counting, team play
 // Bock, written out independently: every stronger card of the same suit has been played.
@@ -322,4 +322,60 @@ ok(api.MC_END[1].options[0]==='2500'&&/1000/.test(api.MC_END[1].explain)&&/1000/
 ok(/as soon as we have enough/.test(api.MC_END[5].options[0])&&/lost/.test(api.MC_END[5].explain),'thanking in the middle of a round is allowed, and wrong thanks lose');
 ok(/257/.test(api.MC_MATCH[0].explain),'a Kontermatch counts like a Match');
 api.MC_WEIS.forEach((m,i)=>{const q=api.qMC(api.MC_WEIS,i,true);ok(q.options.find(o=>o.id===q.answer).label===m.options[0]&&m.answer===0&&q.options.length===4,'mc Weis '+i)});
+// ---- Chapter 5: sure tricks, which game to name, the first card after a push. Everything is worked out here a second way.
+const TOPDOWN='AKOUB9876',BOTTOMUP='6789BUOKA',TRUMPS='U9AKOB876';     // typed in by hand
+function refSure(hand,m){                // walk down each suit until the first card that is missing
+  const order=m==='unde'?BOTTOMUP:TOPDOWN;let n=0;
+  for(const s of SU)for(const r of order){if(!hand.some(c=>c.s===s&&c.r===r))break;n++}
+  return n;
+}
+for(let k=0;k<20000;k++){const h=api.deck().sort(()=>Math.random()-.5).slice(0,9);let bad=false;for(const m of ['oben','unde'])if(api.sureTricks(h,m)!==refSure(h,m)){ok(false,'sureTricks differs from the reference '+J({h,m}));bad=true}if(bad)break}
+ok(api.sureTricks(H('r:A r:K r:O e:K e:O s:A s:O t:7 t:6'),'oben')===4&&api.sureTricks(H('r:A r:K r:O e:K e:O s:A s:O t:7 t:6'),'unde')===2,'Ass, König, Ober and a lone Ass: four from the top. 6 and 7: two from the bottom');
+ok(api.sureTricks(H('r:K r:O r:U e:A e:O e:U s:9 t:8 t:7'),'oben')===1&&api.sureTricks(H('r:K r:O r:U e:A e:O e:U s:9 t:8 t:7'),'unde')===0,'no Ass, no sure trick; a gap ends the count; a 7 without the 6 is nothing');
+const seenSure={},seenLead={};
+const wouldPush=h=>SU.every(s=>refPattern(h,s)===0)&&refSure(h,'oben')<=3&&refSure(h,'unde')<=3;
+for(let k=0;k<3000;k++){
+  for(const m of ['oben','unde']){
+    const q=api.qSure(m),n=refSure(q.cards,m),order=m==='unde'?BOTTOMUP:TOPDOWN;
+    const sure=q.cards.map((c,i)=>{for(const r of order){if(r===c.r)return i;if(!inHand(q.cards,c.s,r))return -1}return -1}).filter(i=>i>=0);
+    ok(q.cards.length===9&&uniq(q.cards)&&q.mode===m&&q.answer===n&&J(q.mark)===J(sure)&&sure.length===n&&q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.some(o=>o.id===n)&&q.options.every(o=>o.id>=0)&&n>=2&&n<=6&&/not sure|does not count/.test(q.explain),'sure '+m+': the count, the marked cards, and one card that only looks strong');
+    seenSure[m+n]=1;
+  }
+  for(const w of ['oben','unde','trump','push']){
+    const q=api.qGame(w),a=refSure(q.cards,'oben'),b=refSure(q.cards,'unde'),pats=SU.filter(s=>refPattern(q.cards,s));
+    const mine=a>=5?'oben':b>=5?'unde':pats.length===1?'trump':pats.length?'ambiguous':'push';       // the rule of thumb, applied here
+    ok(q.cards.length===9&&uniq(q.cards)&&q.answer===w&&mine===w&&!(a>=5&&b>=5)&&q.options.map(o=>o.id).join()==='trump,oben,unde,push'&&q.kind==='tactic','game '+w+': the rule of thumb gives exactly this answer '+J([a,b,pats]));
+    if(w==='oben'||w==='unde')ok((w==='oben'?a:b)<=6&&(w==='oben'?b:a)<=1&&pats.length===0,'game '+w+': five or six sure tricks, next to nothing the other way, no Trumpf suit');
+    else ok(a<=3&&b<=3,'game '+w+': at most three sure tricks either way');
+    if(w==='trump')ok(q.explain.includes(api.SUITS.find(x=>x.id===pats[0]).name)&&q.suit===pats[0],'game trump: the explanation names the suit');
+  }
+  for(const v of ['best','puur2','ass3']){
+    const q=api.qLeadT(v),t=q.trump,tr=q.hand.filter(c=>c.s===t).sort((x,y)=>TRUMPS.indexOf(x.r)-TRUMPS.indexOf(y.r)),good=q.answer.map(i=>q.hand[i]);
+    const want=v==='best'?tr[0]:tr[1];
+    ok(q.hand.length===9&&uniq(q.hand)&&q.type==='best'&&q.cards.length===0&&q.legal.length===9&&wouldPush(q.hand)&&good.length===1&&key(good[0])===key(want)&&/You pushed/.test(q.info)&&q.info.includes(api.SUITS.find(x=>x.id===t).name)&&q.kind==='tactic','lead '+v+': one best card, in a hand that would have pushed');
+    if(v==='best')ok(tr.length>=2&&tr.length<=3&&'9KO'.includes(tr[0].r)&&tr.every(c=>!'UAB'.includes(c.r)),'lead best: two or three Trumpf without Puur, Ass or Banner, and the highest is led');
+    if(v==='puur2')ok(tr.length===2&&tr[0].r==='U'&&!'9AB'.includes(tr[1].r),'lead puur2: the Puur and one small Trumpf, and the small one is led');
+    if(v==='ass3')ok(tr.length===3&&tr[0].r==='A'&&tr.every(c=>!'U9B'.includes(c.r)),'lead ass3: the Ass and two more, and the second-highest is led');
+    seenLead[q.scn]=1;
+  }
+  for(const v of ['puur1','none']){
+    const q=api.qLeadNoT(v),t=q.trump,tr=q.hand.filter(c=>c.s===t),good=q.answer.map(i=>key(q.hand[i])).sort();
+    const four=SU.filter(s=>s!==t&&len(q.hand,s)===4);
+    const want=v==='puur1'?q.hand.filter(c=>c.s===four[0]&&'6789'.includes(c.r)):q.hand.filter(c=>'KOU'.includes(c.r));
+    ok(q.hand.length===9&&uniq(q.hand)&&q.cards.length===0&&wouldPush(q.hand)&&J(good)===J(want.map(key).sort())&&good.length>=1&&q.kind==='both','lead '+v+': exactly the cards the convention asks for');
+    if(v==='puur1')ok(tr.length===1&&tr[0].r==='U'&&four.length===1&&inHand(q.hand,four[0],'A')&&SU.every(s=>s===t||s===four[0]||(len(q.hand,s)===2&&!inHand(q.hand,s,'A')))&&good.length===2,'lead puur1: a lone Puur, one clearly strongest suit with the Ass, two low cards to choose from');
+    if(v==='none')ok(tr.length===0&&good.length<=2&&q.hand.some(c=>c.r==='A')&&SU.every(s=>len(q.hand,s)<=4),'lead none: no Trumpf at all, one or two picture cards, an Ass as a decoy');
+    seenLead[q.scn]=1;
+  }
+  for(const v of ['low','top'])for(const m of ['oben','unde']){
+    const q=api.qLeadM(v,m),order=m==='unde'?BOTTOMUP:TOPDOWN,four=SU.filter(s=>len(q.hand,s)===4),X=four[0];
+    const mineX=q.hand.filter(c=>c.s===X).sort((x,y)=>order.indexOf(x.r)-order.indexOf(y.r)),twoTop=inHand(q.hand,X,order[0])&&inHand(q.hand,X,order[1]);
+    const want=twoTop?mineX[0]:mineX[3],good=q.answer.map(i=>q.hand[i]);
+    ok(q.hand.length===9&&uniq(q.hand)&&q.mode===m&&!q.trump&&q.cards.length===0&&four.length===1&&wouldPush(q.hand)&&twoTop===(v==='top')&&good.length===1&&key(good[0])===key(want)&&SU.every(s=>s===X||!inHand(q.hand,s,order[0]))&&q.info.includes(m==='unde'?'Undenufe':'Obenabe'),'lead after a pushed '+m+' ('+v+'): '+(v==='top'?'the top card of the two':'the weakest card of the strongest suit'));
+    if(v==='low')ok(inHand(q.hand,X,order[0])!==inHand(q.hand,X,order[1]),'lead low: exactly one of the two top cards in the strongest suit');
+    seenLead[q.scn+m]=1;
+  }
+}
+ok(Object.keys(seenSure).length>=8&&Object.keys(seenLead).length===9,'chapter 5: every kind of situation occurs '+J([Object.keys(seenSure).length,Object.keys(seenLead).length]));
+ok(api.STAGES.length===13&&api.STAGES[12].ch===5&&api.STAGES[12].lessons.length===6&&api.STAGES[12].lessons[5].check===true&&api.STAGES[12].lessons.every(l=>!l.round),'thirteen stages: chapter 5 holds stage 13 with five lessons and a check');
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

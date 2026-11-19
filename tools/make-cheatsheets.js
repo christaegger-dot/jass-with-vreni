@@ -163,6 +163,45 @@ function build(which) {
       + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
       + foot(3) + '</div>';
   }
+  if (which === 11) {
+    const H = str => str.split(' ').map(x => { const a = x.split(':'); return { s: { e: 'eichle', r: 'rose', s: 'schelle', t: 'schilte' }[a[0]], r: a[1] }; });
+    const pc = (s, r, tag, cls, extra) => '<div class="pc' + (extra ? ' ' + extra : '') + '">' + cardSVG({ s, r }) + '<span class="tag ' + (cls || '') + '"' + (tag ? '' : ' style="visibility:hidden"') + '>' + (tag || 'x') + '</span></div>';
+    // the examples are counted by the app's own function before they are printed
+    const top = H('r:A r:K r:O s:K s:O s:U e:A e:O e:U'), bottom = H('t:6 t:7 t:8 e:7 e:8 e:9 r:6 r:8 r:9');
+    if (sureTricks(top, 'oben') !== 4 || sureTricks(bottom, 'unde') !== 4 || sureTricks(top, 'unde') !== 0) throw new Error('the sure-trick examples on sheet 11 are wrong');
+    const ex = (cards, sure, note) => '<div style="display:flex;gap:10px;align-items:center;margin-bottom:5px"><div class="pcs">' + cards.map((c, i) => pc(c.s, c.r, i < sure ? 'sure' : '', i < sure ? 'w' : '', i < sure ? '' : 'dim')).join('') + '</div><span>' + note + '</span></div>';
+    const row = (a, b, c) => '<tr><td>' + a + '</td><td>' + b + '</td><td><b>' + c + '</b></td></tr>';
+    return '<div class="page tight">'
+      + head('Cheat sheet 11 · Chapter 5', 'Naming the game', 'Obenabe!', 'Top-down. Count before you say it.')
+      + '<section class="two"><div><h2>Sure tricks in Obenabe</h2>'
+      + ex(top.slice(0, 3), 3, '<b>3</b> Ass, König, Ober')
+      + ex(top.slice(3, 6), 0, '<b>0</b> the Ass is still out')
+      + ex(top.slice(6, 9), 1, '<b>1</b> the König is missing')
+      + '<p class="dim">Count from the top of each suit and stop at the first gap. A sure trick is only sure while you lead.</p></div>'
+      + '<div><h2>…and in Undenufe</h2>'
+      + ex(bottom.slice(0, 3), 3, '<b>3</b> 6, 7, 8')
+      + ex(bottom.slice(3, 6), 0, '<b>0</b> the 6 is still out')
+      + ex(bottom.slice(6, 9), 1, '<b>1</b> the 7 is missing')
+      + '<p class="dim">The same count, upside down: start at the 6 and go up.</p></div></section>'
+      + '<section><h2>You are Vorhand: what do you say?</h2><div class="rules">'
+      + '<div class="rule"><span class="num">1</span><div><b>Five, better six, from the top</b>Name Obenabe.</div></div>'
+      + '<div class="rule"><span class="num">2</span><div><b>Five, better six, from the bottom</b>Name Undenufe.</div></div>'
+      + '<div class="rule"><span class="num">3</span><div><b>Fewer, but one strong suit</b>Name it as Trumpf. The rule of thumb is on cheat sheet 5.</div></div>'
+      + '<div class="rule"><span class="num">4</span><div><b>Nothing fits</b>Gschobe: your partner chooses.</div></div>'
+      + '</div></section>'
+      + '<section><h2>You pushed, your partner named the game. You still play the first card.</h2>'
+      + '<table><tr><td>Your partner named</td><td>You hold</td><td>You lead</td></tr>'
+      + row('A Trumpf suit', 'two or three Trumpf', 'your best Trumpf')
+      + row('', 'the Puur and one more', 'the smaller Trumpf')
+      + row('', 'the Ass and two more', 'the second-highest Trumpf')
+      + row('', 'only the Puur', 'a low card, 6 to 9, of your strongest suit')
+      + row('', 'no Trumpf at all', 'a König, an Ober or an Under')
+      + row('Obenabe or Undenufe', 'no suit with its two top cards', 'the weakest card of your strongest suit')
+      + row('', 'the two top cards of a suit', 'the top card, then the next one')
+      + '</table><p class="dim" style="margin-top:5px">In Undenufe the two top cards are the 6 and the 7, and the weakest card is the highest one.</p></section>'
+      + '<section class="box"><b>Not one rule on this page.</b> <span class="tag">Tactic</span> <span class="tag w">Signal</span> These are rules of thumb and conventions that Swiss tables have settled on. They often pay off, and they tell your partner something. Your table may have its own: ask before the first card.</section>'
+      + foot(11) + '</div>';
+  }
   if (which === 10) {
     // Every word comes from the lists of the app, so the sheet cannot drift away from it.
     const RANK_NOTE = { A: 'the ace: no name and no number on the card', K: 'the king', O: 'stands where a queen would, and he is a man', U: 'like a jack. In the Trumpf suit he is the Puur.', B: 'the ten: look for the flag' };
@@ -375,6 +414,7 @@ const SHEETS = [
   [8, 'jass-cheat-sheet-8-weis-and-stoeck.pdf', 'Jass cheat sheet 8: Weis and Stöck'],
   [9, 'jass-cheat-sheet-9-scoring.pdf', 'Jass cheat sheet 9: Scoring like a local'],
   [10, 'jass-cheat-sheet-10-glossary.pdf', 'Jass cheat sheet 10: Jass glossary'],
+  [11, 'jass-cheat-sheet-11-naming-the-game.pdf', 'Jass cheat sheet 11: Naming the game'],
 ];
 
 (async () => {

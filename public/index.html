@@ -767,7 +767,7 @@ function qTrumpCount(){
 // A situation with one best card. o.good tells which cards of the hand are best.
 function bestQ(o){
   const hand=sortHand(o.hand.slice()),trick=o.trick||[];
-  return {type:'best',single:true,scn:o.scn,trump:o.trump,cards:trick,seats:o.seats||[],hand,
+  return {type:'best',single:true,scn:o.scn,trump:o.trump,mode:o.mode,cards:trick,seats:o.seats||[],hand,
     legal:trick.length?legalT(hand,trick,o.trump):hand.map((_,i)=>i),
     answer:hand.map((c,i)=>o.good(c)?i:-1).filter(i=>i>=0),
     led:trick.length?trick[0].s:undefined,winning:trick.length?trickWinnerT(trick,o.trump):-1,
@@ -1050,6 +1050,125 @@ const MC_END=[
     hint:'The factors are an agreement, not a law.',explain:'The factors are something a table agrees on. For beginners it is perfectly fine to count everything single, and then you play to 1000.'}
 ];
 
+/* ---------- Chapter 5: which game to name, and the first card after a push ---------- */
+// A sure trick without Trumpf: the top cards of a suit, in a row and with no gap. In Undenufe the top card is the 6.
+const sureRun=(hand,s,m)=>{const o=orderM(m);let n=0;while(n<9&&holds(hand,s,o[n]))n++;return n};
+const sureTricks=(hand,m)=>SUITS.reduce((n,x)=>n+sureRun(hand,x.id,m),0);
+const NUM_WORD=['no','one','two','three','four','five','six','seven','eight','nine'];
+const namesAnd=l=>l.length<2?l[0]:l.slice(0,-1).join(', ')+' and '+l[l.length-1];
+// Says in words where the sure tricks are, and names one card that looks strong but is not sure.
+function sureText(hand,m){
+  const o=orderM(m),parts=[];let trap='';
+  for(const x of SUITS){
+    const n=sureRun(hand,x.id,m);
+    if(n)parts.push(x.name+': '+namesAnd(o.slice(0,n).map(r=>rankOf(r).name))+', '+NUM_WORD[n]);
+    if(!trap&&!n&&holds(hand,x.id,o[1]))trap='The '+rankOf(o[1]).name+' of '+x.name+' is not sure: the '+rankOf(o[0]).name+' is still out.';
+    if(!trap&&n&&n<8&&holds(hand,x.id,o[n+1]))trap='In '+x.name+' the '+rankOf(o[n+1]).name+' does not count: the '+rankOf(o[n]).name+' is missing in between.';
+  }
+  return {where:parts.join('. ')+(parts.length?'.':''),trap};
+}
+const SURE_PLANS=[[1,1,0,0],[2,1,0,0],[3,0,0,0],[2,2,0,0],[3,1,0,0],[1,1,1,0],[2,1,1,0],[3,2,0,0],[2,2,1,0],[3,1,1,0],[3,2,1,0],[2,2,2,0]];
+const GAME_PLANS=[[3,2,0,0],[3,1,1,0],[2,2,1,0],[3,2,1,0],[2,2,2,0],[3,3,0,0],[2,2,1,1],[3,1,1,1]];      // five or six sure tricks
+// Nine cards whose sure tricks follow one of the plans, suit by suit.
+function sureHand(m,plans,test){
+  const o=orderM(m);let hand;
+  for(let tries=0;tries<4000;tries++){
+    const p=shuffle(deck()),su=shuffle(SUITS).map(x=>x.id),plan=pick(plans);
+    hand=[];su.forEach((s,i)=>{hand=hand.concat(takeFrom(p,c=>c.s===s&&o.indexOf(c.r)<plan[i],plan[i]))});
+    hand=hand.concat(p.slice(0,9-hand.length));
+    if(su.every((s,i)=>sureRun(hand,s,m)===plan[i])&&(!test||test(hand)))break;
+  }
+  return sortHand(hand);
+}
+function qSure(m){
+  m=m||pick(['oben','unde']);const o=orderM(m);
+  const hand=sureHand(m,SURE_PLANS,h=>!!sureText(h,m).trap),n=sureTricks(hand,m),tx=sureText(hand,m);
+  const mark=hand.map((c,i)=>o.indexOf(c.r)<sureRun(hand,c.s,m)?i:-1).filter(i=>i>=0);
+  const high=hand.filter(c=>o.indexOf(c.r)<3).length;                 // the tempting wrong answer: every high card counted
+  return {type:'sure',mode:m,cards:hand,mark,answer:n,options:numOpts(n,[high].concat(shuffle([n+1,n-1,n+2,n+3]))),
+    prompt:'You lead. How many sure tricks do you hold?',
+    explain:tx.where+' '+tx.trap+' That makes '+NUM_WORD[n]+' sure trick'+(n===1?'':'s')+(m==='unde'?', counted from the 6 up.':', counted from the Ass down.')};
+}
+const GAME_OPTS=()=>[{id:'trump',label:'A Trumpf suit',sub:'one of the four'},{id:'oben',label:'Obenabe',sub:'top-down'},{id:'unde',label:'Undenufe',sub:'bottom-up'},{id:'push',label:'Gschobe',sub:'push to my partner'}];
+function qGame(want){                       // 'oben' 'unde' 'trump' 'push'
+  let hand,adv=null;
+  if(want==='oben'||want==='unde')hand=sureHand(want,GAME_PLANS,h=>!announceAdvice(h)&&sureTricks(h,want==='oben'?'unde':'oben')<=1);
+  else for(let tries=0;tries<600;tries++){
+    hand=qAnnounce(want==='push'?'push':pick([1,1,2,3,4])).cards;adv=announceAdvice(hand);
+    if(sureTricks(hand,'oben')<=3&&sureTricks(hand,'unde')<=3)break;
+  }
+  const a=sureTricks(hand,'oben'),b=sureTricks(hand,'unde'),w=n=>n?NUM_WORD[n]:'none',both='From the top you count '+w(a)+', from the bottom '+w(b);
+  let explain;
+  if(want==='oben'||want==='unde'){
+    const n=want==='oben'?a:b;
+    explain=sureText(hand,want).where+' That makes '+NUM_WORD[n]+' sure tricks from the '+(want==='oben'?'top':'bottom')+(n===5?': enough to name '+MODE_NAME[want]+', and six would be better still.':': a clear '+MODE_NAME[want]+'.');
+  }else if(want==='trump')explain=both+': too few for Obenabe or Undenufe. But in '+suitOf(adv.suit).name+' you hold '+PATTERN_TEXT[adv.pattern]+'. So you name '+suitOf(adv.suit).name+' as Trumpf.';
+  else explain=both+', and no suit is strong enough for Trumpf. So you push, and your partner chooses.';
+  return {type:'game',kind:'tactic',cards:hand,want,suit:adv?adv.suit:undefined,options:GAME_OPTS(),answer:want,prompt:'You are Vorhand. What do you say?',explain};
+}
+// The first card after a push. Vorhand still leads, although her partner named the game.
+const PUSHED=what=>'You pushed. Your partner named '+what+'.';
+const LEAD_PROMPT='You are Vorhand, so you play the first card. Which one?';
+const pushedHand=h=>!announceAdvice(h)&&sureTricks(h,'oben')<=3&&sureTricks(h,'unde')<=3;      // a hand you would really have pushed
+function qLeadT(v){                         // 'best' 'puur2' 'ass3': you hold Trumpf to lead
+  let hand,t;
+  for(let tries=0;tries<800;tries++){
+    const p=shuffle(deck());t=pick(SUITS).id;
+    let set;
+    if(v==='puur2')set=['U',pick(['K','O','8','7','6'])];
+    else if(v==='ass3')set=['A'].concat(shuffle(['K','O','8','7','6']).slice(0,2));
+    else{const top=pick(['9','K','O']);set=[top].concat(shuffle({'9':['K','O','8','7','6'],K:['O','8','7','6'],O:['8','7','6']}[top]).slice(0,1+rnd(2)))}
+    hand=takeFrom(p,c=>c.s===t&&set.includes(c.r),set.length).concat(takeFrom(p,c=>c.s!==t,9-set.length));
+    if(pushedHand(hand))break;
+  }
+  const tr=TRUMP_ORDER.filter(r=>holds(hand,t,r)),want=v==='best'?tr[0]:tr[1],tn=suitOf(t).name,nm=tShort({s:t,r:want},t);
+  return bestQ({scn:'lead-'+v,trump:t,hand,good:c=>c.s===t&&c.r===want,info:PUSHED(tn+' as Trumpf'),prompt:LEAD_PROMPT,kind:'tactic',
+    hint:v==='best'?'Your partner chose '+tn+' because she is strong there. Which of your cards helps her most to pull the other team’s Trumpf out?'
+      :v==='puur2'?'You hold two Trumpf, and one of them cannot be beaten by anything. Is that card in a hurry?'
+      :'Puur and Nell are still out, and both of them beat your Ass. Which Trumpf can you lead without risking 11 points?',
+    explain:v==='best'?'Lead Trumpf, and lead your best one: the '+nm+'. Your partner named '+tn+' because she is strong there. Your lead makes the other team give up Trumpf, and she can go on drawing them.'
+      :v==='puur2'?'With the Puur and just one more Trumpf, the convention is to lead the smaller one: the '+nm+'. Nothing beats the Puur, so he is in no hurry. Keep him for a trick where he is needed.'
+      :'With the Ass and two more Trumpf, the usual lead is the second-highest: the '+nm+'. Puur and Nell are still out, and both beat your Ass. Keep its 11 points until those two have been played.',
+    line:v==='best'?['Trumpf uszieh!','Help your partner draw them.','trumpf-uszieh']:null});
+}
+function qLeadNoT(v){                       // 'puur1' 'none': nothing to draw Trumpf with
+  let hand,t,X;
+  for(let tries=0;tries<800;tries++){
+    const p=shuffle(deck()),su=shuffle(SUITS).map(x=>x.id);t=su[0];X=su[1];
+    if(v==='puur1'){                        // the strongest side suit holds four cards with the Ass, the two others two cards without one
+      hand=[{s:t,r:'U'},{s:X,r:'A'},{s:X,r:pick(['K','O','B'])}].concat(shuffle(['9','8','7','6']).slice(0,2).map(r=>({s:X,r})));
+      hand=hand.concat(takeFrom(p,c=>c.s===su[2]&&c.r!=='A',2)).concat(takeFrom(p,c=>c.s===su[3]&&c.r!=='A',2));
+    }else{
+      hand=takeFrom(p,c=>c.s!==t&&'KOU'.includes(c.r),1+rnd(2)).concat(takeFrom(p,c=>c.s!==t&&c.r==='A',1));
+      hand=hand.concat(takeFrom(p,c=>c.s!==t&&'B9876'.includes(c.r),9-hand.length));
+    }
+    if(hand.length===9&&pushedHand(hand)&&SUITS.every(x=>cnt(hand,x.id)<=4))break;
+  }
+  const tn=suitOf(t).name,Xn=suitOf(X).name;
+  return bestQ({scn:'lead-'+v,trump:t,hand,good:v==='puur1'?c=>c.s===X&&'9876'.includes(c.r):c=>c.s!==t&&'KOU'.includes(c.r),info:PUSHED(tn+' as Trumpf'),prompt:LEAD_PROMPT,kind:'both',
+    hint:v==='puur1'?'You hold exactly one Trumpf, and it is the strongest card in the game. Would you spend it on the very first trick? Find your strongest other suit.'
+      :'No Trumpf in your hand. Swiss tables have a convention for that, and it asks for a picture card.',
+    explain:v==='puur1'?'The Puur is your only Trumpf, and you do not lead him. The convention for this hand: lead a low card, 6 to 9, from your strongest suit. That is '+Xn+', where you hold four cards with the Ass. The Puur stays in your hand, and nothing can take him away.'
+      :'You hold no '+tn+' at all, so you cannot lead Trumpf. The convention for this hand: lead a König, an Ober or an Under. With a lone Puur you would lead a low card instead. The two leads look different, and an attentive partner notices.'});
+}
+function qLeadM(v,m){                       // 'low' 'top': your partner named Obenabe or Undenufe
+  m=m||pick(['oben','unde']);const o=orderM(m);let hand,X;
+  for(let tries=0;tries<800;tries++){
+    const p=shuffle(deck()),su=shuffle(SUITS).map(x=>x.id);X=su[0];
+    const xs=v==='top'?[o[0],o[1]].concat(shuffle(o.slice(2)).slice(0,2)):[pick([o[0],o[1]])].concat(shuffle(o.slice(2)).slice(0,3));
+    hand=xs.map(r=>({s:X,r}));
+    [2,2,1].forEach((n,i)=>{hand=hand.concat(takeFrom(p,c=>c.s===su[i+1]&&c.r!==o[0],n))});      // no top card anywhere else
+    if(hand.length===9&&pushedHand(hand))break;
+  }
+  const mine=o.filter(r=>holds(hand,X,r)),want=v==='top'?o[0]:mine[mine.length-1],Xn=suitOf(X).name,nm=r=>rankOf(r).name;
+  return bestQ({scn:'leadm-'+v,mode:m,hand,good:c=>c.s===X&&c.r===want,info:PUSHED(MODE_NAME[m]),prompt:LEAD_PROMPT,kind:v==='top'?'tactic':'both',
+    hint:v==='top'?'Look at your '+Xn+'. Do you hold the two strongest cards of that suit in '+MODE_NAME[m]+'? Think of your sure tricks.'
+      :'Which suit is your strongest? You hold four cards there. And which of them is the weakest in '+MODE_NAME[m]+'?',
+    explain:v==='top'?'You hold the '+nm(o[0])+' and the '+nm(o[1])+' of '+Xn+': the two top cards in '+MODE_NAME[m]+', and two sure tricks. That is the exception to the weakest card. Take them, the '+nm(o[0])+' first.'
+      :'Your partner named '+MODE_NAME[m]+'. The usual first card is the weakest card of your strongest suit: the '+nm(want)+' of '+Xn+'.'+(m==='unde'?' In Undenufe the weakest card is the highest one.':'')+' It shows her where you hold the most cards, and she can play that suit back to you.',
+    line:v==='top'?null:['Aazieh!','Lead your strong suit.','aazieh']});
+}
+
 const STAGES=[
   {ch:1,title:'Meet the cards',blurb:'Four suits, nine cards each. None of it looks like a poker deck.',lessons:[
     {title:'The four suits',help:0,n:6,intro:'suits',
@@ -1223,6 +1342,26 @@ const STAGES=[
     {title:'Check: the slate',help:2,n:10,check:true,
       text:'Ten questions, no help. Get eight right, and the whole game is yours.',
       gen:i=>[()=>qFactor(),()=>qWrite(pick(['plain','stoeck'])),()=>qMatchYN('zero'),()=>qMC(MC_END,rnd(MC_END.length),true),()=>qWrite('weis'),()=>qFactor(),()=>qWrite('match'),()=>qMC(MC_END,rnd(MC_END.length),true),()=>qMatchYN(pick(['yes','close'])),()=>qMC(MC_MATCH,rnd(MC_MATCH.length),true)][i%10]()}
+  ]},
+  {ch:5,title:'Naming the game',blurb:'Obenabe, Undenufe or Trumpf? And the first card after a push. Rules of thumb, not rules.',lessons:[
+    {title:'Sure tricks',help:0,n:6,intro:'sure',
+      text:'You know all six games now. Which one do you name? Start by counting. Without Trumpf nobody can cut in, so a card that nobody can beat is a sure trick, as long as you are the one who leads. In Obenabe{obenabe} count from the top of each suit: the Ass is one, Ass and König are two, and you stop at the first gap. In Undenufe{undenufe} count the same way from the bottom: the 6, then the 7.',
+      gen:i=>qSure(i%2?'unde':'oben')},
+    {title:'Which game?',help:0,n:6,intro:'levels-tactic',
+      text:'Here is the rule of thumb for Vorhand. Count your sure tricks. With five, better six, from the top you name Obenabe. With five or six from the bottom you name Undenufe. Otherwise look for a Trumpf suit, the way you learned it in Stage 6. And if nothing fits, you push{gschobe}.',
+      gen:i=>qGame(['oben','push','unde','trump','oben','unde'][i%6])},
+    {title:'After the push: lead Trumpf',help:1,n:6,intro:'levels-tactic',
+      text:'You pushed, your partner named a Trumpf suit, and still you play the first card: Vorhand always leads. She chose that suit because she is strong in it. So help her draw the Trumpf{trumpf-uszieh}: lead your best one. Two exceptions have settled in. With the Puur and just one more Trumpf, lead the smaller one. With the Ass and two more, lead the second-highest.',
+      gen:i=>qLeadT(['best','puur2','best','ass3','best','puur2'][i%6])},
+    {title:'After the push: no Trumpf to lead',help:1,n:6,intro:'levels-both',
+      text:'Sometimes you cannot help with Trumpf. If the Puur is your only Trumpf, keep him and lead a low card, 6 to 9, from your strongest suit. If you hold no Trumpf at all, lead a König, an Ober or an Under. These are conventions that Swiss tables have settled on. Your table may have its own.',
+      gen:i=>qLeadNoT(i%2?'none':'puur1')},
+    {title:'After a pushed Obenabe or Undenufe',help:1,n:6,intro:'levels-both',
+      text:'Your partner can also answer your push with Obenabe or Undenufe. Then the usual first card is the weakest card of your strongest suit. It shows her where you hold the most. One exception: with the two top cards of a suit, Ass and König in Obenabe or 6 and 7 in Undenufe, you hold two sure tricks. Take them.',
+      gen:i=>qLeadM(['low','low','top'][i%3],i%2?'unde':'oben')},
+    {title:'Check: naming and leading',help:2,n:10,check:true,
+      text:'Ten situations, no help. Get eight right, and you can open a round like a local.',
+      gen:i=>[()=>qSure('oben'),()=>qGame('unde'),()=>qLeadT('best'),()=>qLeadNoT('puur1'),()=>qLeadM(pick(['low','top'])),()=>qSure('unde'),()=>qGame(pick(['trump','push'])),()=>qLeadT(pick(['puur2','ass3'])),()=>qLeadNoT('none'),()=>qGame('oben')][i%10]()}
   ]}
 ];
 const PASS=.8;
@@ -1426,7 +1565,8 @@ const SHEETS=[
   ['cheatsheets/jass-cheat-sheet-7-obenabe-and-undenufe.pdf','7 · Obenabe and Undenufe','The two games without Trumpf: order and points side by side.'],
   ['cheatsheets/jass-cheat-sheet-8-weis-and-stoeck.pdf','8 · Weis and Stöck','What a Weis is worth, whose Weis counts, and the 20 points for Stöck.'],
   ['cheatsheets/jass-cheat-sheet-9-scoring.pdf','9 · Scoring like a local','Single, double, triple, Match, and how a game ends.'],
-  ['cheatsheets/jass-cheat-sheet-10-glossary.pdf','10 · Jass glossary','Every Jass word in the course from A to Z, how to say it, and what Vreni says.']
+  ['cheatsheets/jass-cheat-sheet-10-glossary.pdf','10 · Jass glossary','Every Jass word in the course from A to Z, how to say it, and what Vreni says.'],
+  ['cheatsheets/jass-cheat-sheet-11-naming-the-game.pdf','11 · Naming the game','Sure tricks, when to name Obenabe or Undenufe, and the first card after a push.']
 ];
 function sheetsHTML(){
   if(!PUBLIC_SITE)return '<p class="small dim">The printable cheat sheets live on the website: <a href="https://jass-with-vreni.netlify.app">jass-with-vreni.netlify.app</a></p>';
@@ -1434,7 +1574,7 @@ function sheetsHTML(){
 }
 const extLink=(url,label)=>'<a class="ghost link" href="'+url+'">'+label+'</a>';
 const songLink=label=>extLink(SONG_URL,label);
-const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf',3:'Chapter 3 · Playing well',4:'Chapter 4 · The full game'};
+const CHAPTERS={1:'Chapter 1 · First tricks',2:'Chapter 2 · Trumpf',3:'Chapter 3 · Playing well',4:'Chapter 4 · The full game',5:'Chapter 5 · At the table'};
 const WORDS2=[['trumpf','Trumpf','troompf','the boss suit of a round'],['puur','Puur','poor','the Under of Trumpf, strongest card of all'],['nell','Nell','nell','the 9 of Trumpf, second strongest'],['steche','Steche','SHTEKH-eh','to take a trick with a Trumpf'],['untertrumpfe','Untertrumpfe','OON-ter-troomp-feh','to play a lower Trumpf on a trumped trick. Not allowed.'],['vorhand','Vorhand','FOR-hahnt','the player to the right of the dealer. She speaks first and plays first.'],['gschobe','Gschobe!','KSHOH-beh','«pushed»: my partner has to name Trumpf']];
 const WORDS3=[['bock','Bock','bock','the highest card of a suit that is still out'],['trumpf-uszieh','Trumpf uszieh','troompf OOS-tsee-eh','to lead Trumpf and pull the other team’s Trumpf out'],['schmiere','Schmiere','SHMEE-reh','to put points on a trick your partner is sure to win'],['verwerfe','Verwerfe','fer-VER-feh','to throw a card away when you cannot follow suit; it shows your weak suit'],['aazieh','Aazieh','AH-tsee-eh','to lead your strong suit and try to lure the high card out']];
 const WORDS4=[['obenabe','Obenabe','OH-beh-NAH-beh','top-down: no Trumpf, the Ass is highest'],['undenufe','Undenufe','OON-deh-NOO-feh','bottom-up: no Trumpf, the 6 is highest'],['wys','Weis','veess · say «Wys»','bonus points for rows and fours in the cards you are dealt'],['stoeck','Stöck','shtuck','König and Ober of Trumpf in one hand: 20 points']];
@@ -1491,6 +1631,10 @@ function introVisual(kind){
       +'<div'+on('signal')+'><span class="tag win">Signal</span><span>what your card tells your partner</span></div></div>'
       +'<p class="small dim" style="margin-top:8px">This lesson is about '+(k==='both'?'a tactic that is also a signal':k==='signal'?'a signal':'a tactic')+'. Nobody can force you to play this way.</p>';
   }
+  if(kind==='sure'){
+    const mini=(s,rs,note)=>'<div class="deckrow">'+rs.map(r=>'<div class="cardbox"><span class="card" style="width:54px">'+cardSVG({s,r})+'</span></div>').join('')+'</div><p class="small dim" style="margin:4px 0 10px">'+note+'</p>';
+    return modeChip('oben')+'<div style="margin-top:10px">'+mini('rose',['A','K','O'],'Ass, König, Ober: three sure tricks.')+mini('schelle',['K','O','U'],'No Ass: not one sure trick. The Ass is still out.')+mini('eichle',['A','O','U'],'Only the Ass is sure. The König is missing in between.')+'</div>';
+  }
   if(kind==='seats')return '<div style="max-width:260px">'+seatsSVG({dealer:3})+'</div><p class="small dim">Here the player on your left has dealt. So you are Vorhand.</p>';
   return '';
 }
@@ -1513,8 +1657,9 @@ function renderHome(){
       +'<span class="state">'+(stagePassed(si)?'Done':(open?'Open':'Locked'))+'</span></div><p>'+st.blurb+'</p><div class="lessons">'+lessons+'</div></section>';
   });
   const all=STAGES.every((_,i)=>stagePassed(i)),ch1=stagePassed(2);
-  const hello=all?'You have finished the whole course: cards, Trumpf, tactics, Weis and the slate. Now find three people and a deck of cards. The lions of Winterthur have been warned.'
-    :stagePassed(10)?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. One stage is left, and then you can keep the slate yourself.'
+  const hello=all?'You have finished the whole course: cards, Trumpf, tactics, Weis, the slate and the right call. Now find three people and a deck of cards. The lions of Winterthur have been warned.'
+    :stagePassed(11)?'You know every rule of the game, and you can keep the slate. One stage is left: which game to name, and which card to lead when your partner had to choose.'
+    :stagePassed(10)?'Obenabe, Undenufe, Weis and Stöck: you know every game and every bonus. Next comes the slate: single, double, triple.'
     :stagePassed(8)?'Chapter 3 is done. You count the Trumpf, you know your Bock and you feed your partner. The lions of Winterthur are getting nervous. Now the full game: two more ways to play, and points before the first card.'
     :stagePassed(6)?'You have played a whole round, and you can sit down at a real table now. Chapter 3 shows how good players think. It is mostly counting.'
     :stagePassed(4)?'You know what you may play. Now you learn to speak first: Ansagen or Schieben. After that we play a whole round. I am already setting the table.'
@@ -1563,6 +1708,7 @@ function renderDeck(){
       +(stageOpen(10)?'<p class="small dim" style="margin:10px 0 4px">Weis:</p>'+weisTableHTML()+'<p class="small dim" style="margin-top:8px">Only the team with the single highest Weis writes, and it writes everything both partners hold. Stöck are König and Ober of Trumpf: 20 points, and they always count.</p>':'')
       +(stageOpen(11)?'<p class="small dim" style="margin:10px 0 4px">The slate:</p>'+factorTableHTML()+'<div class="scroll" style="margin-top:8px"><table class="sheet-table"><tbody>'+WORDS5.map(w=>'<tr><td><b>'+w[1]+'</b>'+spk(w[0])+'</td><td class="say">'+w[2]+'</td><td>'+w[3]+'</td></tr>').join('')+'</tbody></table></div>'
         +'<p class="small dim" style="margin-top:8px">One round is worth 157, a Match 257. Everything a team makes in a round is multiplied by the factor of the game. The first team to reach the agreed total wins: 1000 if everything counts single, 2500 with factors. If both get there in the first trick of a round, the order is Stöck, Weis, Stich.</p>':'')+'</div>':'')
+    +(stageOpen(12)?'<div><h2>'+CHAPTERS[5]+'</h2><p class="small dim">Sure tricks without Trumpf: count from the top of each suit and stop at the first gap. In Undenufe the top is the 6. With five, better six, sure tricks you can name Obenabe or Undenufe. After a push, Vorhand still leads: usually her best Trumpf. With the Puur and one more she leads the smaller one, with the Ass and two more the second-highest. With the Puur alone she leads a low card from her strongest suit, and with no Trumpf a König, an Ober or an Under. After a pushed Obenabe or Undenufe she leads the weakest card of her strongest suit, unless she holds its two top cards. All of this is rule of thumb and convention, not rule.</p></div>':'')
     +(PUBLIC_SITE?'':'<details><summary>Recording check (temporary, for Christa)</summary><p class="small dim">Every clip in the app, including the ones for later chapters.</p><div class="clips">'
     +Array.from(RECORDED).map(k=>'<button class="chip" type="button" data-say="'+k+'">'+k+'</button>').join('')+'</div></details>')
     +'<div class="actions"><button class="primary" type="button" data-go="home">Back to the path</button></div></div>';
@@ -1619,7 +1765,7 @@ function renderLesson(){
   let table='<div class="cards">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
   if(q.last)table='<span class="row-label">Last trick of the round</span>'+table;
   if(q.hand)table='<span class="row-label">On the table</span>'+table+'<span class="row-label">Your hand</span><div class="cards hand">'+q.hand.map((c,i)=>cardBtn(c,i,'hand')).join('')+'</div>';
-  if(['announce','pushed','weisfind','stoeck'].includes(q.type))table='<span class="row-label">Your hand</span><div class="cards hand">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
+  if(['announce','pushed','weisfind','stoeck','sure','game'].includes(q.type))table='<span class="row-label">Your hand</span><div class="cards hand">'+q.cards.map((c,i)=>cardBtn(c,i,'table')).join('')+'</div>';
   if(q.type==='bock')table='<span class="row-label">Already played</span>'+row(q.gone,'gone')+'<span class="row-label">Still out</span>'+table;
   if(q.type==='mybock')table='<span class="row-label">Already played</span>'+row(q.gone,'gone')+handRow();
   if(q.type==='trumpcount')table='<span class="row-label">Trumpf already played</span>'+row(q.gone,'gone')+'<span class="row-label">Trumpf in your hand</span>'+row(q.mine,'hand');
@@ -1682,6 +1828,8 @@ function aidHTML(q){
   if(q.type==='mybock')return '<span>Check your cards one by one: is a higher card of the same suit still out? If not, your card is Bock.</span>'+ladderHTML();
   if(q.type==='trumpcount')return '<span>Every suit has nine cards. Nine, minus the Trumpf that have been played, minus the Trumpf in your hand.</span>';
   if(q.type==='best')return '<span>'+q.hint+'</span>'+(q.cards.length?'<span class="small dim">The green tag shows who would take the trick right now.</span>':'');
+  if(q.type==='sure')return '<span>Go through your hand suit by suit. Start at the top card, '+(q.mode==='unde'?'the 6':'the Ass')+', and count down the ladder as long as there is no gap. A suit without its top card gives you nothing.</span>'+modeLadderHTML(q.mode);
+  if(q.type==='game')return '<span>1. Count your sure tricks from the top (Ass, König, Ober) and from the bottom (6, 7, 8). Five or more: name that game. 2. If not, look for a Trumpf suit. 3. Nothing fits: push.</span>'+handSummaryHTML(q.cards)+RULE_OF_THUMB;
   if(q.type==='announce')return '<span>Count each suit, and look for Under, 9 and Ass:</span>'+handSummaryHTML(q.cards)+RULE_OF_THUMB;
   if(q.type==='pushed')return '<span>Which suit is longest? And where are the Under and the 9?</span>'+handSummaryHTML(q.cards);
   if(q.type==='tpick')return '<span>The Puur is the Under of the Trumpf suit. The Nell is its 9. The red T marks every Trumpf card.</span>';
@@ -1717,7 +1865,8 @@ function answer(ok){
   if(ok&&q.type==='weisfind'&&q.answer&&Math.random()<.5)L.line=['En Wys!','A Weis!','wys'];
   if(ok&&(q.type==='mybock'||(q.type==='bock'&&!q.trump))&&Math.random()<.5)L.line=['Bock!','Nobody can beat it.','bock'];
   if(ok&&q.type==='tpick')L.line=[TRUMP_NAME[q.target]+'!',q.target==='U'?'The boss.':'Second in command.',q.target==='U'?'puur':'nell'];
-  if(ok&&q.type==='announce'&&q.answer==='push')L.line=['Gschobe!','Pushed. Your partner has to choose.','gschobe'];
+  if(ok&&(q.type==='announce'||q.type==='game')&&q.answer==='push')L.line=['Gschobe!','Pushed. Your partner has to choose.','gschobe'];
+  if(ok&&q.type==='game'&&MODE_NAME[q.answer])L.line=[MODE_NAME[q.answer]+'!',q.answer==='unde'?'Bottom-up.':'Top-down.',q.answer==='unde'?'undenufe':'obenabe'];
   if(!ok&&q.type==='tlegal'&&q.under.some(i=>L.sel.includes(i)))L.line=['Untertrumpfe? Nid a mim Tisch!','Undertrumping? Not at my table!','nid-a-mim-tisch'];
   if(ok&&q.type==='number'){const r=rankOf(q.answer);L.line=[r.ch+'!',r.en.charAt(0).toUpperCase()+r.en.slice(1)+'.',AUDIO_KEY[r.id]]}
   if(!voice(L.line[2]))sfx(ok?'good':'bad');
@@ -1733,7 +1882,7 @@ function finishLesson(){
   const pct=Math.round(score*100);
   let msg;
   if(L.ls.check)msg=passed
-    ?'<p class="chalk">Jetzt chasch es!<span class="tr">Now you’ve got it!</span></p><p>Stage '+(L.si+1)+' is done.'+(!STAGES[L.si+1]?' That was the last stage. You know the whole game now. Find three people and a deck of cards.':STAGES[L.si+1].ch!==STAGES[L.si].ch?' Chapter '+STAGES[L.si].ch+' is done. Stage '+(L.si+2)+' opens Chapter '+STAGES[L.si+1].ch+'.':' Stage '+(L.si+2)+' is open.')+'</p>'
+    ?'<p class="chalk">Jetzt chasch es!<span class="tr">Now you’ve got it!</span></p><p>Stage '+(L.si+1)+' is done.'+(!STAGES[L.si+1]?' That was the last stage. You know the rules, the slate and the right call. Find three people and a deck of cards.':STAGES[L.si+1].ch!==STAGES[L.si].ch?' Chapter '+STAGES[L.si].ch+' is done.'+(STAGES[L.si].ch===4?' You know every rule of the game now.':'')+' Stage '+(L.si+2)+' opens Chapter '+STAGES[L.si+1].ch+'.':' Stage '+(L.si+2)+' is open.')+'</p>'
      +'<p class="small">'+songLink('Celebrate with a song')+' <span class="dim">When Vreni wins, she puts this on.</span></p>'
     :'<p class="chalk">Fast.<span class="tr">Almost.</span></p><p>You need 80% to open the next stage. Go back a lesson, or try the check again. No one is counting but me.</p>'
      +'<p class="small">'+extLink(SKETCH_URL,'Take a break with Emil')+' <span class="dim">«Der Jasser», a Swiss comedy classic from 1974.</span></p>';

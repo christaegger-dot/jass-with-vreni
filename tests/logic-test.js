@@ -1,7 +1,7 @@
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');
 const logic=html.split('/*LOGIC-START*/')[1].split('/*LOGIC-END*/')[0];
-const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal};')();
+const api=new Function(logic+';return {SUITS,RANKS,trickWinner,legalCards,trickPoints,points,qSuit,qPick,qBridge,qNumber,qStronger,qWinner,qLegal,qValue,qCount,STAGES,deck,trickWinnerT,pointsT,legalT,qTPick,qTStronger,qTWinner,qTValue,qTCount,qMC,MC_POINTS,qTLegal,announcePattern,announceAdvice,bestSuit,qAnnounce,qPushed,MC_VORHAND,dealRound,newRound,roundPlay,roundCloseTrick,botCard,botMove,PATTERN_TEXT};')();
 let fail=0,count=0;const ok=(c,m)=>{count++;if(!c){fail++;console.log('FAIL',m)}};
 const C=(s,r)=>({s,r});
 // fixed cases
@@ -107,5 +107,79 @@ for(let i=0;i<4000;i++){
 for(const k of ['free:choice','free:void','trumpled:puur','trumpled:many','trumpled:one','trumpled:none','under:under','under:onlytrumpf'])ok(seen[k]>50,'scenario occurs: '+k+' ('+(seen[k]||0)+')');
 api.MC_POINTS.forEach((m,i)=>{const q=api.qMC(api.MC_POINTS,i);ok(q.options[q.answer].label===m.options[m.answer]&&q.hint.length>5,'mc '+i)});
 ok(api.MC_POINTS[1].options[api.MC_POINTS[1].answer]==='62'&&api.MC_POINTS[2].options[api.MC_POINTS[2].answer]==='157','mc numbers: 62 and 157');
-for(const st of api.STAGES)for(const ls of st.lessons)for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}
+
+// ------------------------------------------------------------ Ansagen, Schieben and a whole round (chapter 2, part 2)
+// The rule of thumb for Vorhand, written out a second time, independently of the app.
+function refPattern(hand,s){
+  const mine=hand.filter(c=>c.s===s).map(c=>c.r),has=r=>mine.includes(r),sideAces=hand.filter(c=>c.s!==s&&c.r==='A').length;
+  if(has('U')&&has('9')&&has('A'))return 3;
+  if(has('U')&&mine.length>=4)return 1;
+  if(has('9')&&has('A')&&mine.length>=5)return 2;
+  if(has('U')&&has('9')&&mine.length>=3&&sideAces>=2)return 4;
+  return 0;
+}
+const H=str=>str.trim().split(/\s+/).map(x=>{const [s,r]=x.split(':');return C({e:'eichle',r:'rose',s:'schelle',t:'schilte'}[s],r)});
+const SU=api.SUITS.map(x=>x.id),len=(h,s)=>h.filter(c=>c.s===s).length;
+ok(api.announcePattern(H('s:U s:K s:8 s:6 r:A r:7 e:K e:9 t:8'),'schelle')===1,'Puur with three more: name it');
+ok(api.announcePattern(H('s:U s:K s:8 r:A r:7 r:6 e:K e:9 t:8'),'schelle')===0,'Puur with only two more: not enough');
+ok(api.announcePattern(H('r:9 r:A r:K r:8 r:6 e:K e:7 t:8 s:6'),'rose')===2,'Nell and Ass with three more: name it');
+ok(api.announcePattern(H('r:9 r:A r:K r:8 e:6 e:K e:7 t:8 s:6'),'rose')===0,'Nell and Ass with only two more: not enough');
+ok(api.announcePattern(H('t:U t:9 t:A e:K e:7 e:6 s:8 s:6 r:7'),'schilte')===3,'Puur, Nell and Ass: name it');
+ok(api.announcePattern(H('t:U t:9 t:7 e:A e:7 e:6 s:A s:6 r:7'),'schilte')===4,'Puur, Nell and one more with two Asses elsewhere: name it');
+ok(api.announcePattern(H('t:U t:9 t:7 e:A e:7 e:6 s:K s:6 r:7'),'schilte')===0,'Puur, Nell and one more with one Ass elsewhere: not enough');
+ok(api.announceAdvice(H('e:A e:O e:7 r:K r:8 s:B s:6 t:O t:7'))===null,'a hand without Puur or Nell: push');
+ok(api.bestSuit(H('t:U t:9 t:A t:8 r:A r:6 s:K e:8 e:6'))==='schilte','after a push the partner names the long suit with Puur and Nell');
+ok(api.bestSuit(H('e:K e:O e:8 e:7 e:6 r:U r:9 s:A t:A'))==='eichle','after a push: five cards beat Puur and Nell alone');
+// the two prepared deals of the first round
+let d0=api.dealRound(0),d1=api.dealRound(1);
+ok(d0.every(h=>h.length===9)&&uniq([].concat(...d0))&&api.announceAdvice(d0[0]).suit==='schelle'&&refPattern(d0[0],'schelle')===1,'first deal: you hold the Puur of Schelle with three more');
+ok(d1.every(h=>h.length===9)&&uniq([].concat(...d1))&&api.announceAdvice(d1[0])===null&&SU.every(s=>refPattern(d1[0],s)===0)&&api.bestSuit(d1[2])==='schilte','second deal: a hand to push, and the partner names Schilte');
+for(let i=0;i<3000;i++){
+  for(const w of [1,2,3,4]){
+    const q=api.qAnnounce(w),pats=SU.filter(s=>refPattern(q.cards,s));
+    ok(q.cards.length===9&&uniq(q.cards)&&pats.length===1&&pats[0]===q.answer&&refPattern(q.cards,q.answer)===w&&q.options.length===5&&q.options.some(o=>o.id==='push')&&SU.every(s=>q.options.some(o=>o.id===s))&&q.explain.includes(api.SUITS.find(x=>x.id===q.answer).name)&&q.explain.includes(api.PATTERN_TEXT[w]),'announce pattern '+w);
+    ok(SU.every(s=>s===q.answer||len(q.cards,s)<=4),'announce: no long side suit');
+  }
+  let q=api.qAnnounce('push');
+  ok(q.cards.length===9&&uniq(q.cards)&&q.answer==='push'&&SU.every(s=>refPattern(q.cards,s)===0&&len(q.cards,s)<=4)&&/push/.test(q.explain),'announce: a hand to push');
+  q=api.qPushed();
+  const L5=len(q.cards,q.answer);
+  ok(q.cards.length===9&&uniq(q.cards)&&q.options.length===4&&SU.every(s=>s===q.answer||len(q.cards,s)<L5)&&q.cards.some(c=>c.s===q.answer&&'U9'.includes(c.r))&&!q.cards.some(c=>c.s!==q.answer&&'U9'.includes(c.r))&&L5>=4,'pushed: the long suit with Puur or Nell');
+  q=api.qMC(api.MC_VORHAND,i,true);const m=api.MC_VORHAND[i%api.MC_VORHAND.length];
+  ok(q.options.length===4&&new Set(q.options.map(o=>o.id)).size===4&&q.options.find(o=>o.id===q.answer).label===m.options[m.answer]&&q.hint.length>5&&q.explain.length>20,'mc Vorhand');
+}
+// whole rounds: every card every player puts down is checked against the reference rules
+let matches=0,ownWins=0;
+for(let k=0;k<3000;k++){
+  const hands=api.dealRound(k<2?k:9),leader=k%2?rnd(4):0,st=api.newRound(hands,leader);
+  st.trump=k%3?api.bestSuit(hands[rnd(4)]):SU[rnd(4)];
+  const seen=[];let sum=0,bad=false;
+  for(let n=0;n<9&&!bad;n++){
+    const lead=st.leader;
+    for(let j=0;j<4;j++){
+      const seat=st.turn;ok(seat===(lead+j)%4,'round: play runs counter-clockwise from the leader');
+      const hand=st.hands[seat],legal=st.trick.length?refLegal(hand,st.trick,st.trump):hand.map((_,i)=>i);
+      const idx=seat===0&&k%4===0?legal[rnd(legal.length)]:api.botMove(st,seat);   // in every fourth round seat 0 plays any legal card, like a learner
+      if(!legal.includes(idx)){ok(false,'round: illegal card '+J({seat,hand,trick:st.trick,trump:st.trump,idx}));bad=true;break}
+      seen.push(hand[idx]);
+      ok(api.roundPlay(st,seat,idx)===(j===3),'round: trick is complete after four cards');
+    }
+    if(bad)break;
+    const cards=st.trick.slice(),w=(lead+refWinner(cards,st.trump))%4,pts=cards.reduce((a,c)=>a+refPts(c,st.trump),0)+(n===8?5:0);
+    const t=api.roundCloseTrick(st);sum+=pts;
+    ok(t.winner===w&&t.points===pts&&st.leader===w&&st.turn===w&&st.trick.length===0,'round: winner and points of trick '+(n+1));
+  }
+  if(bad)break;
+  ok(seen.length===36&&uniq(seen)&&st.hands.every(h=>h.length===0)&&st.done.length===9,'round: all 36 cards are played once');
+  ok(sum===157&&st.score[0]+st.score[1]===157&&st.won[0]+st.won[1]===9,'round: 157 points and nine tricks');
+  if(st.won[0]===9||st.won[1]===9)matches++;
+  if(st.won[0]>st.won[1])ownWins++;
+}
+ok(matches<300,'a Match stays rare ('+matches+' of 3000 rounds)');
+console.log('rounds: team of seat 0 took more tricks in '+ownWins+' of 3000, Match in '+matches);
+// the first prepared deal is winnable: with Schelle as Trumpf and sensible play your team takes the majority of the points
+{let good=0;for(let k=0;k<200;k++){const st=api.newRound(api.dealRound(0),0);st.trump='schelle';for(let n=0;n<9;n++){for(let j=0;j<4;j++)api.roundPlay(st,st.turn,api.botMove(st,st.turn));api.roundCloseTrick(st)}if(st.score[0]>st.score[1])good++}
+ console.log('first deal, Schelle named, played by the app itself: your team is ahead in '+good+' of 200');ok(good>=100,'first deal is a fair start ('+good+' of 200)')}
+for(const st of api.STAGES)for(const ls of st.lessons){if(ls.round)continue;for(let i=0;i<ls.n;i++){const q=ls.gen(i);ok(q&&q.prompt&&q.explain,'lesson gen')}}
+ok(api.STAGES.length===7&&api.STAGES[5].lessons.length===4&&api.STAGES[6].lessons.length===1&&api.STAGES[6].lessons[0].round===true,'seven stages, the last one is the round');
 console.log(fail?fail+' failures':'all logic checks passed ('+count+' checks)');

@@ -85,6 +85,18 @@ li{margin-bottom:5px}
 .work h4{margin:0 0 5px;font-size:8pt;letter-spacing:1.2px;text-transform:uppercase;color:#6b665a}
 .work .cards{display:flex;gap:10px}
 .work .t{width:.98in}
+.steps{display:grid;grid-template-columns:2.1in 1fr;gap:.32in;align-items:center}
+.seatbox{background:#1f5a3d;border-radius:10px;padding:8px 10px 4px}
+.seatbox svg{display:block;width:100%;height:auto}
+.seatbox p{margin:2px 0 4px;color:#fff;font-size:8.4pt;text-align:center;line-height:1.25}
+.pats{display:grid;grid-template-columns:repeat(2,1fr);gap:.12in .15in}
+.pat{border:1.5px solid #1f5a3d;border-radius:9px;padding:7px 11px 6px;display:flex;flex-direction:column;gap:4px}
+.pat h3{display:flex;align-items:center;gap:8px;font-family:'Lilita One',sans-serif;font-weight:400;font-size:12.5pt;line-height:1.1;margin:0}
+.pat .num{width:26px;height:26px;font-size:13pt}
+.pat .cards{display:flex;gap:5px;align-items:center}
+.pat .cards svg{width:.44in;height:auto;display:block;border-radius:5px}
+.pat .plus{font-family:'Lilita One',sans-serif;font-size:15pt;color:#1f5a3d;padding:0 3px}
+.pat p{font-size:9.2pt;line-height:1.3;margin:0}
 footer{margin-top:auto;display:flex;justify-content:space-between;gap:20px;border-top:1.2px solid #cfc9b8;padding-top:7px;font-size:8pt;color:#6b665a}
 `;
 
@@ -140,6 +152,41 @@ function build(which) {
       + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
       + foot(3) + '</div>';
   }
+  if (which === 5) {
+    const H = str => str.split(' ').map(x => { const a = x.split(':'); return { s: { e: 'eichle', r: 'rose', s: 'schelle', t: 'schilte' }[a[0]], r: a[1] }; });
+    // Four whole hands. Only the cards that matter are printed, but the app's own rule checks all nine.
+    const pats = [
+      [1, 'schelle', H('s:U s:K s:8 s:6 r:A r:7 e:K e:9 t:8'), 'The Puur and three more', 'Four Trumpf, and the boss is one of them.'],
+      [2, 'rose', H('r:9 r:A r:O r:8 r:7 e:K e:6 t:B s:7'), 'Nell, Ass and three more', 'No Puur, so you need length: five Trumpf.'],
+      [3, 'schilte', H('t:U t:9 t:A e:K e:8 e:6 r:O r:7 s:8'), 'Puur, Nell and Ass', 'The three strongest cards. They are enough on their own.'],
+      [4, 'eichle', H('e:U e:9 e:7 r:A s:A r:8 s:K s:6 t:7'), 'Puur, Nell and one more, plus two Asses', 'Short in Trumpf, but two Asses in other suits make up for it.']
+    ];
+    const pat = p => {
+      const n = p[0], t = p[1], hand = p[2];
+      if (announcePattern(hand, t) !== n || announceAdvice(hand).suit !== t) throw new Error('example ' + n + ' on sheet 5 no longer matches the rule of thumb');
+      const tr = hand.filter(c => c.s === t).sort((a, b) => TRUMP_ORDER.indexOf(a.r) - TRUMP_ORDER.indexOf(b.r));
+      const aces = n === 4 ? hand.filter(c => c.s !== t && c.r === 'A') : [];
+      return '<div class="pat"><h3><span class="num">' + n + '</span>' + p[3] + '</h3><div class="cards">' + tr.map(cardSVG).join('')
+        + (aces.length ? '<span class="plus">+</span>' + aces.map(cardSVG).join('') : '') + '</div><p>' + p[4] + '</p></div>';
+    };
+    const push = H('e:A e:O e:7 r:K r:8 s:B s:6 t:O t:7');
+    if (announceAdvice(push) !== null) throw new Error('the push example on sheet 5 is no longer a hand to push');
+    const all = WORDS.concat(WORDS2), words = ['vorhand', 'gschobe', 'schieber', 'trumpf'].map(k => all.find(w => w[0] === k)).filter(Boolean)
+      .map(w => '<tr><td>' + w[1] + '</td><td class="say">' + w[2] + '</td><td>' + w[3] + '</td></tr>').join('');
+    return '<div class="page">'
+      + head('Cheat sheet 5 · Chapter 2', 'Ansagen or Schieben?', 'Gschobe!', 'Pushed! Now it is your problem, partner.')
+      + '<section><h2>Before the first card</h2><div class="steps"><div class="seatbox">' + seatsSVG({ dealer: 3 }) + '<p>Here the player on your left deals.<br>So you are Vorhand.</p></div>'
+      + '<ol><li>Everybody gets <b>nine cards</b>.</li><li>The player to the right of the dealer is the <b>Vorhand</b>. She speaks first.</li>'
+      + '<li>Vorhand <b>names Trumpf</b>. That is called Ansagen. Or she says <b>«Gschobe»</b> and pushes the choice to her partner. That is called Schieben.</li>'
+      + '<li>After a push the partner <b>must</b> name Trumpf. There is no pushing back.</li>'
+      + '<li><b>Vorhand plays the first card</b>, also when her partner named Trumpf.</li>'
+      + '<li>Play runs counter-clockwise. Trumpf stays Trumpf for all nine tricks.</li></ol></div></section>'
+      + '<section><h2>Name Trumpf yourself when one suit gives you this</h2><div class="pats">' + pats.map(pat).join('') + '</div></section>'
+      + '<section class="box"><b>Anything less: Gschobe.</b> A push is no shame. It tells your partner: nothing special here, you choose. This is a rule of thumb for your first rounds, not a law.</section>'
+      + '<section class="two"><div><h2>When your partner pushes to you</h2><ul><li><b>You must name Trumpf.</b> Bad cards are no excuse.</li><li>Take your <b>longest suit</b>.</li><li>Two suits of the same length? Take the one with the Puur or the Nell.</li><li>Then wait: your partner is Vorhand and plays the first card.</li></ul></div>'
+      + '<div><h2>Words you will hear</h2><table>' + words + '</table></div></section>'
+      + foot(5) + '</div>';
+  }
   if (which === 4) {
     const T = 'schelle';
     const trick = [{ s: 'rose', r: '8' }, { s: 'schelle', r: 'K' }];
@@ -190,6 +237,7 @@ const SHEETS = [
   [2, 'jass-cheat-sheet-2-rank-and-points.pdf', 'Jass cheat sheet 2: Rank and points'],
   [3, 'jass-cheat-sheet-3-trumpf.pdf', 'Jass cheat sheet 3: Trumpf'],
   [4, 'jass-cheat-sheet-4-what-may-i-play.pdf', 'Jass cheat sheet 4: What may I play?'],
+  [5, 'jass-cheat-sheet-5-ansagen-or-schieben.pdf', 'Jass cheat sheet 5: Ansagen or Schieben?'],
 ];
 
 (async () => {
